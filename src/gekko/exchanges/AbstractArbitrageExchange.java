@@ -20,6 +20,11 @@ import org.knowm.xchange.service.marketdata.MarketDataService;
 import org.knowm.xchange.service.trade.TradeService;
 import org.knowm.xchange.service.account.AccountService;
 
+/**
+ * 
+ * @author max
+ * boilerplate for implementing exchanges
+ */
 public abstract class AbstractArbitrageExchange {
 	
 	private Class exchangeClass;
