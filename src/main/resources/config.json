@@ -1,0 +1,10 @@
+{
+"exchange":[{
+	"name":"",
+	"apikey":"",
+	"secretkey":"",
+	"currencypair":[
+		"x":"BTC",
+		"y":"LTC"
+	}]
+}
