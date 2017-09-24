@@ -1,4 +1,12 @@
 ###
+### Project
+###
+resources/config.json
+.DS_Store
+.classpath
+.project
+
+###
 ### Java
 ###
 # Compiled class file
