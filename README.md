@@ -1,4 +1,15 @@
 # Gekko
 
-![Alt text](img/gekko.jpg?raw=true "Title")
+Fill out the template and save as config.json in your src/main/resource forder.
+
+{
+"exchange":[{
+	"name":"",
+	"apikey":"",
+	"secretkey":"",
+	"currencypair":[
+		"x":"BTC",
+		"y":"LTC"
+	}]
+}
 
