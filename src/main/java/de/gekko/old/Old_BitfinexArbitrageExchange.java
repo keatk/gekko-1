@@ -1,4 +1,4 @@
-package gekko.exchanges;
+package de.gekko.old;
 
 import java.io.IOException;
 
@@ -10,9 +10,9 @@ import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.exceptions.NotAvailableFromExchangeException;
 import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
 
-public class BitfinexArbitrageExchange extends AbstractArbitrageExchange{
+public class Old_BitfinexArbitrageExchange extends Old_AbstractArbitrageExchange{
 	
-	public BitfinexArbitrageExchange(CurrencyPair currencyPair, String apiKey, String secretKey){
+	public Old_BitfinexArbitrageExchange(CurrencyPair currencyPair, String apiKey, String secretKey){
 		super(BitfinexExchange.class, "Bitfinex",  currencyPair, apiKey, secretKey);
 	}
 	

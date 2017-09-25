@@ -1,4 +1,4 @@
-package gekko;
+package de.gekko.old;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -13,12 +13,8 @@ import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.exceptions.NotAvailableFromExchangeException;
 import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
 
-import gekko.arbitrager.Arbitrager;
-import gekko.exchanges.BitfinexArbitrageExchange;
-import gekko.exchanges.BittrexArbitrageExchange;
 
-
-public class Core {
+public class Old_Core {
 
 	public static void main(String[] args) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
 		
@@ -30,10 +26,10 @@ public class Core {
 		String apiKey2 = "";
 		String secretKey2 = "";
 		
-		BittrexArbitrageExchange bittrexExchange = new BittrexArbitrageExchange(currencyPair, "apiKey1", "secretKey1");
-		BitfinexArbitrageExchange bitfinexExchange = new BitfinexArbitrageExchange(currencyPair, "apiKey2", "secretKey2");
+		Old_BittrexArbitrageExchange bittrexExchange = new Old_BittrexArbitrageExchange(currencyPair, "apiKey1", "secretKey1");
+		Old_BitfinexArbitrageExchange bitfinexExchange = new Old_BitfinexArbitrageExchange(currencyPair, "apiKey2", "secretKey2");
 
-		Arbitrager arb1 = new Arbitrager(bittrexExchange, bitfinexExchange, currencyPair);
+		Old_Arbitrager arb1 = new Old_Arbitrager(bittrexExchange, bitfinexExchange, currencyPair);
 		
 		long startTime = System.nanoTime();
 		
