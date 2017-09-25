@@ -30,109 +30,77 @@ import org.knowm.xchange.service.trade.TradeService;
 
 public class Old_ArbitragerOld {
 	
-	private boolean debug = true;
+	private static final double arbitrageMargin = 0.45;
 	
-	// Transaction Fees
-	private static final double btceLtcWithdrawFee = 0.001;
-	private static final double btceEthWithdrawFee = 0.001;
-	private static final double bittrexLtcWithdrawFee = 0.002;
 	private static final double bittrexEthWithdrawFee = 0.005;
+	private static final double bittrexFee = 0.25;
+	private static final double bittrexLtcWithdrawFee = 0.002;
+	private static final double btceEthWithdrawFee = 0.001;
 	
 	// Trading Fees
 	private static final double btceFee = 0.2;
-	private static final double bittrexFee = 0.25;
+	// Transaction Fees
+	private static final double btceLtcWithdrawFee = 0.001;
     
+	private static final double maxTradeLimit = 0.03; //ETH
 	// Arbitrage Settings
 	private static final double minTradeLimit = 0.01; //ETH
-	private static final double maxTradeLimit = 0.03; //ETH
-	private static final double arbitrageMargin = 0.45;
+	public static Exchange createExchangeBittrex() {
+		ExchangeSpecification exSpec = new ExchangeSpecification(BittrexExchange.class);
+		exSpec.setApiKey("");
+		exSpec.setSecretKey("");
+
+		return ExchangeFactory.INSTANCE.createExchange(exSpec);
+	}
 	
+	public static Exchange createExchangeBtcMarkets() throws IOException {
+		ExchangeSpecification exSpec = new ExchangeSpecification(BTCMarketsExchange.class);
+		exSpec.setApiKey("");
+		exSpec.setSecretKey("");
+
+		Exchange exchange = ExchangeFactory.INSTANCE.createExchange(exSpec);
+
+		return exchange;
+	}
+	private boolean balanceChanged = false;
+	private AccountService bittrexAccountService;
+	private double bittrexEth;
+	
+	private Exchange bittrexExchange;
+	private double bittrexLtc;
+	private MarketDataService bittrexMarketDataService;
+	private OrderBook bittrexOrderBookEthBtc;
+	private OrderBook bittrexOrderBookLtcEth;
+	private TradeService bittrexTradeService;
 	// Currency Pairs
 	private CurrencyPair btc_eth = new CurrencyPair(Currency.BTC, Currency.ETH);
-	private CurrencyPair eth_btc = new CurrencyPair(Currency.ETH, Currency.BTC);
-	private CurrencyPair eth_ltc = new CurrencyPair(Currency.ETH, Currency.LTC);
-	private CurrencyPair ltc_eth = new CurrencyPair(Currency.LTC, Currency.ETH);
-	
-	// Exchange Services
-	private Exchange btceExchange;
-	private Exchange bittrexExchange;
-	private MarketDataService btceMarketDataService;
-	private MarketDataService bittrexMarketDataService;
-	private TradeService btceTradeService;
-	private TradeService bittrexTradeService;
 	private AccountService btceAccountService;
-	private AccountService bittrexAccountService;
-	
-	// Order Books
-	private OrderBook btceOrderBookEthLtc;
-	private OrderBook bittrexOrderBookLtcEth;
-	private OrderBook btceOrderBookEthBtc;
-	private OrderBook bittrexOrderBookEthBtc;
-	ExecutorService networkExecutor = Executors.newFixedThreadPool(2);
 	
 	// Balances
 	private double btceEth;
+	// Exchange Services
+	private Exchange btceExchange;
 	private double btceLtc;
-	private double bittrexEth;
-	private double bittrexLtc;
-	private double totalEth;
-	private double totalLtc;;
-	private boolean balanceChanged = false;
+	private MarketDataService btceMarketDataService;
+	private OrderBook btceOrderBookEthBtc;
+	
+	// Order Books
+	private OrderBook btceOrderBookEthLtc;
+	private TradeService btceTradeService;
+	private boolean debug = true;
+	private CurrencyPair eth_btc = new CurrencyPair(Currency.ETH, Currency.BTC);
+	private CurrencyPair eth_ltc = new CurrencyPair(Currency.ETH, Currency.LTC);
+	private CurrencyPair ltc_eth = new CurrencyPair(Currency.LTC, Currency.ETH);;
+	ExecutorService networkExecutor = Executors.newFixedThreadPool(2);
 	
 	private double startUpEth = -1;
 	private double startUpLtc = -1;
 	
-	public Old_ArbitragerOld() throws IOException{
-		this.btceExchange = createExchangeBtcMarkets();
-		this.bittrexExchange = createExchangeBittrex();
-		this.btceMarketDataService = initMarketServiceBtce();
-		this.bittrexMarketDataService = initMarketServiceBittrex();
-		
-		this.btceTradeService = btceExchange.getTradeService();
-		this.bittrexTradeService = bittrexExchange.getTradeService();
-		this.btceAccountService = btceExchange.getAccountService();
-		this.bittrexAccountService = bittrexExchange.getAccountService();
-		
-		checkBalances();
-		this.startUpEth = totalEth;
-		this.startUpLtc = totalLtc;
-	}
+	private double totalEth;
 	
 	
 	
-	/**
-	 * Check Balances
-	 * @throws NotAvailableFromExchangeException
-	 * @throws NotYetImplementedForExchangeException
-	 * @throws ExchangeException
-	 * @throws IOException
-	 */
-	public void checkBalances() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{
-	    Map<Currency, Balance> btceBalances = btceAccountService.getAccountInfo().getWallet().getBalances();
-	    double btceEth = btceBalances.get(Currency.ETH).getTotal().doubleValue();
-	    double btceLtc = btceBalances.get(Currency.LTC).getTotal().doubleValue();
-	    
-	    Map<Currency, Balance> bittrexBalances = bittrexAccountService.getAccountInfo().getWallet().getBalances();
-	    double bittrexEth = bittrexBalances.get(Currency.ETH).getTotal().doubleValue();
-	    double bittrexLtc = bittrexBalances.get(Currency.LTC).getTotal().doubleValue();  
-	    
-		double totalEth = btceEth + bittrexEth;
-		double totalLtc = btceLtc + bittrexLtc;
-			    
-	    System.out.println("BTCE: ETH = " + btceEth + " LTC = " +  btceLtc + " | Bittrex: ETH = " + bittrexEth + " LTC = " + bittrexLtc);
-	    System.out.println("Total: ETH = " + totalEth + " (" + String.format("%.8f", (totalEth - this.totalEth)) + ")" + " LTC = " + totalLtc + " (" + String.format("%.8f", ((totalLtc - this.totalLtc))) + ")");
-	    if(startUpEth != -1 && startUpLtc != -1){
-	    	System.out.println("Profit since Start: ETH = " + String.format("%.8f", ((totalEth - startUpEth))) + " LTC = " + String.format("%.8f", ((totalLtc - startUpLtc))));
-	    }
-	    
-		this.btceEth = btceEth;
-		this.btceLtc = btceLtc;
-		this.bittrexEth = bittrexEth;
-		this.bittrexLtc = bittrexLtc;
-		this.totalEth = btceEth + bittrexEth;
-		this.totalLtc = btceLtc + bittrexLtc;
-		balanceChanged = false;
-	}
+	private double totalLtc;
 	
 //	public void tradeTest() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException{
 //		 LimitOrder limitOrder = new LimitOrder.Builder(OrderType.BID, ltc_eth).limitPrice(new BigDecimal("0.0001")).tradableAmount(new BigDecimal("6")).build();
@@ -159,37 +127,20 @@ public class Old_ArbitragerOld {
 //	      System.out.println(bittrexTradeService.getOpenOrders());
 //	}
 	
-	public void updateMarketDataBtcEth() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{
-				
-		// Multi-threaded Implementation
-		Callable<OrderBook> callable_btcMarketsOrderBookEthBtc = () -> {
-		    return btceMarketDataService.getOrderBook(eth_btc);
-		};
+	public Old_ArbitragerOld() throws IOException{
+		this.btceExchange = createExchangeBtcMarkets();
+		this.bittrexExchange = createExchangeBittrex();
+		this.btceMarketDataService = initMarketServiceBtce();
+		this.bittrexMarketDataService = initMarketServiceBittrex();
 		
-		Callable<OrderBook> callable_bittrexOrderBookBtcEth = () -> {
-		    return bittrexMarketDataService.getOrderBook(eth_btc);
-		};
+		this.btceTradeService = btceExchange.getTradeService();
+		this.bittrexTradeService = bittrexExchange.getTradeService();
+		this.btceAccountService = btceExchange.getAccountService();
+		this.bittrexAccountService = bittrexExchange.getAccountService();
 		
-		Future<OrderBook> future_btceOrderBookEthLtc = networkExecutor.submit(callable_btcMarketsOrderBookEthBtc);
-		Future<OrderBook> future_bittrexOrderBookLtcEth = networkExecutor.submit(callable_bittrexOrderBookBtcEth);	
-		
-		
-		try {
-			btceOrderBookEthLtc = future_btceOrderBookEthLtc.get();
-			bittrexOrderBookLtcEth = future_bittrexOrderBookLtcEth.get();
-			
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ExecutionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-	
-	// Calcultate Arbitrage
-	private double getArbitragePercentage(double ask, double bid){
-		return (1 - ask/bid) * 100;
+		checkBalances();
+		this.startUpEth = totalEth;
+		this.startUpLtc = totalLtc;
 	}
 	
 	/***
@@ -485,9 +436,43 @@ public class Old_ArbitragerOld {
 		}
 	}
 	
-	private MarketDataService initMarketServiceBtce(){
-		
-	    return btceExchange.getMarketDataService();
+	/**
+	 * Check Balances
+	 * @throws NotAvailableFromExchangeException
+	 * @throws NotYetImplementedForExchangeException
+	 * @throws ExchangeException
+	 * @throws IOException
+	 */
+	public void checkBalances() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{
+	    Map<Currency, Balance> btceBalances = btceAccountService.getAccountInfo().getWallet().getBalances();
+	    double btceEth = btceBalances.get(Currency.ETH).getTotal().doubleValue();
+	    double btceLtc = btceBalances.get(Currency.LTC).getTotal().doubleValue();
+	    
+	    Map<Currency, Balance> bittrexBalances = bittrexAccountService.getAccountInfo().getWallet().getBalances();
+	    double bittrexEth = bittrexBalances.get(Currency.ETH).getTotal().doubleValue();
+	    double bittrexLtc = bittrexBalances.get(Currency.LTC).getTotal().doubleValue();  
+	    
+		double totalEth = btceEth + bittrexEth;
+		double totalLtc = btceLtc + bittrexLtc;
+			    
+	    System.out.println("BTCE: ETH = " + btceEth + " LTC = " +  btceLtc + " | Bittrex: ETH = " + bittrexEth + " LTC = " + bittrexLtc);
+	    System.out.println("Total: ETH = " + totalEth + " (" + String.format("%.8f", (totalEth - this.totalEth)) + ")" + " LTC = " + totalLtc + " (" + String.format("%.8f", ((totalLtc - this.totalLtc))) + ")");
+	    if(startUpEth != -1 && startUpLtc != -1){
+	    	System.out.println("Profit since Start: ETH = " + String.format("%.8f", ((totalEth - startUpEth))) + " LTC = " + String.format("%.8f", ((totalLtc - startUpLtc))));
+	    }
+	    
+		this.btceEth = btceEth;
+		this.btceLtc = btceLtc;
+		this.bittrexEth = bittrexEth;
+		this.bittrexLtc = bittrexLtc;
+		this.totalEth = btceEth + bittrexEth;
+		this.totalLtc = btceLtc + bittrexLtc;
+		balanceChanged = false;
+	}
+	
+	// Calcultate Arbitrage
+	private double getArbitragePercentage(double ask, double bid){
+		return (1 - ask/bid) * 100;
 	}
 	
 	private MarketDataService initMarketServiceBittrex(){
@@ -495,22 +480,37 @@ public class Old_ArbitragerOld {
 	    return bittrexExchange.getMarketDataService();
 	}
 	
-	public static Exchange createExchangeBtcMarkets() throws IOException {
-		ExchangeSpecification exSpec = new ExchangeSpecification(BTCMarketsExchange.class);
-		exSpec.setApiKey("");
-		exSpec.setSecretKey("");
-
-		Exchange exchange = ExchangeFactory.INSTANCE.createExchange(exSpec);
-
-		return exchange;
+	private MarketDataService initMarketServiceBtce(){
+		
+	    return btceExchange.getMarketDataService();
 	}
 
-	public static Exchange createExchangeBittrex() {
-		ExchangeSpecification exSpec = new ExchangeSpecification(BittrexExchange.class);
-		exSpec.setApiKey("");
-		exSpec.setSecretKey("");
-
-		return ExchangeFactory.INSTANCE.createExchange(exSpec);
+	public void updateMarketDataBtcEth() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{
+				
+		// Multi-threaded Implementation
+		Callable<OrderBook> callable_btcMarketsOrderBookEthBtc = () -> {
+		    return btceMarketDataService.getOrderBook(eth_btc);
+		};
+		
+		Callable<OrderBook> callable_bittrexOrderBookBtcEth = () -> {
+		    return bittrexMarketDataService.getOrderBook(eth_btc);
+		};
+		
+		Future<OrderBook> future_btceOrderBookEthLtc = networkExecutor.submit(callable_btcMarketsOrderBookEthBtc);
+		Future<OrderBook> future_bittrexOrderBookLtcEth = networkExecutor.submit(callable_bittrexOrderBookBtcEth);	
+		
+		
+		try {
+			btceOrderBookEthLtc = future_btceOrderBookEthLtc.get();
+			bittrexOrderBookLtcEth = future_bittrexOrderBookLtcEth.get();
+			
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ExecutionException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 

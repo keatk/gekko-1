@@ -27,25 +27,25 @@ import org.knowm.xchange.service.account.AccountService;
  */
 public abstract class Old_AbstractArbitrageExchange {
 	
-	private Class exchangeClass;
-	
-	private String name;
+	protected AccountService accountService;
 	
 	private String apiKey;
-	private String secretKey;
-	
-	protected CurrencyPair currencyPair;
-	
-	private Exchange exchange;
-	private MarketDataService marketDataService;
-	private TradeService tradeService;
-	protected AccountService accountService;
 	
 	protected double baseAmount = 0;
 	protected double counterAmount = 0;
 	
-	private double tradingFee;
+	protected CurrencyPair currencyPair;
+	
 	private int decimals;
+	private Exchange exchange;
+	private Class exchangeClass;
+	private MarketDataService marketDataService;
+	
+	private String name;
+	private String secretKey;
+	
+	private TradeService tradeService;
+	private double tradingFee;
 	
 	public Old_AbstractArbitrageExchange(Class exchangeClass, String name, CurrencyPair currencyPair, String apiKey, String secretKey){
 		this.currencyPair = currencyPair;
@@ -59,8 +59,10 @@ public abstract class Old_AbstractArbitrageExchange {
 		initAccountService();
 	}
 	
-	public String getName(){
-		return name;
+	public void checkBalances() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{
+	    Map<Currency, Balance> balances = accountService.getAccountInfo().getWallet().getBalances();
+	    baseAmount = balances.get(currencyPair.base).getTotal().doubleValue();
+	    counterAmount = balances.get(currencyPair.counter).getTotal().doubleValue();
 	}
 
 
@@ -80,22 +82,26 @@ public abstract class Old_AbstractArbitrageExchange {
 //		this.counterAmount = counterAmount;
 //	}
 
-	public double getTradingFee() {
-		return tradingFee;
-	}
-
-	public void setTradingFee(double tradingFee) {
-		this.tradingFee = tradingFee;
-	}
-
 	public int getDecimals() {
 		return decimals;
 	}
 
-	public void setDecimals(int decimals) {
-		this.decimals = decimals;
+	public String getName(){
+		return name;
 	}
 
+	public OrderBook getOrderbook() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{
+		return marketDataService.getOrderBook(currencyPair);
+	}
+
+	public double getTradingFee() {
+		return tradingFee;
+	}
+
+	private void initAccountService(){
+		accountService = exchange.getAccountService();
+	}
+	
 	private void initExchange(){
 		ExchangeSpecification exSpec = new ExchangeSpecification(exchangeClass);
 		exSpec.setApiKey(apiKey);
@@ -112,18 +118,12 @@ public abstract class Old_AbstractArbitrageExchange {
 		tradeService = exchange.getTradeService();
 	}
 	
-	private void initAccountService(){
-		accountService = exchange.getAccountService();
+	public void setDecimals(int decimals) {
+		this.decimals = decimals;
 	}
 	
-	public void checkBalances() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{
-	    Map<Currency, Balance> balances = accountService.getAccountInfo().getWallet().getBalances();
-	    baseAmount = balances.get(currencyPair.base).getTotal().doubleValue();
-	    counterAmount = balances.get(currencyPair.counter).getTotal().doubleValue();
-	}
-	
-	public OrderBook getOrderbook() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{
-		return marketDataService.getOrderBook(currencyPair);
+	public void setTradingFee(double tradingFee) {
+		this.tradingFee = tradingFee;
 	}
 	
 	public String tradeAsk(double askPriceDouble, double askAmountDouble) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{

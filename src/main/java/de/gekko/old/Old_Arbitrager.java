@@ -29,38 +29,38 @@ import org.knowm.xchange.service.marketdata.MarketDataService;
 import org.knowm.xchange.service.trade.TradeService;
 
 public class Old_Arbitrager {
-	private final boolean DEBUG = true;
+	private static final double arbitrageMargin = 0.45;
     
+	private static final double maxTradeLimit = 0.03; //ETH
 	// Arbitrage Settings
 	private static final double minTradeLimit = 0.01; //ETH
-	private static final double maxTradeLimit = 0.03; //ETH
-	private static final double arbitrageMargin = 0.45;
+	private boolean balanceChanged = false;
 
-	//Networking Executor Service
-	ExecutorService networkExecutorService = Executors.newFixedThreadPool(2);
-	
-	//Exchanges
-	private Old_AbstractArbitrageExchange exchange1;
-	private Old_AbstractArbitrageExchange exchange2;
-	
 	// Currency Pair
 	private CurrencyPair currencyPair;
 	
-	// Order Books
-	private OrderBook exchange1Orderbook;
-	private OrderBook exchange2Orderbook;
+	private final boolean DEBUG = true;
+	//Exchanges
+	private Old_AbstractArbitrageExchange exchange1;
 	
 	// Balances
 	private double exchange1Base;
+	
 	private double exchange1Counter;
+	// Order Books
+	private OrderBook exchange1Orderbook;
+	
+	private Old_AbstractArbitrageExchange exchange2;
 	private double exchange2Base;
 	private double exchange2Counter;
-	private double totalBase;
-	private double totalCounter;
+	private OrderBook exchange2Orderbook;
+	//Networking Executor Service
+	ExecutorService networkExecutorService = Executors.newFixedThreadPool(2);
+	private boolean startup = true;
 	private double startUpBase = -1;
 	private double startUpCounter = -1;
-	private boolean balanceChanged = false;
-	private boolean startup = true;
+	private double totalBase;
+	private double totalCounter;
 	
 	public Old_Arbitrager(Old_AbstractArbitrageExchange exchange1, Old_AbstractArbitrageExchange exchange2, CurrencyPair currencyPair) throws IOException{
 		this.exchange1 = exchange1;
@@ -69,133 +69,6 @@ public class Old_Arbitrager {
 		
 		updateBalances();
 		//TODO: sanity checks for currency mismatch
-	}
-	
-	public void updateBalances() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{
-		//Update Balances on Exchanges
-		//TODO: multithreaded balance check
-		exchange1.checkBalances();
-		exchange2.checkBalances();
-		
-		//Get Amounts
-		double exchange1BaseUpdated = exchange1.getBaseAmount();
-		double exchange1CounterUpdated = exchange1.getCounterAmount();
-		double exchange2BaseUpdated = exchange2.getBaseAmount();
-		double exchange2CounterUpdated = exchange2.getCounterAmount();
-		
-		double totalBase = exchange1Base + exchange2Base;
-		double totalCounter = exchange1Counter + exchange2Counter;
-			    
-	    System.out.println(exchange1.getName() + ": "  + currencyPair.base.toString() + " = " + String.format("%.8f", exchange1BaseUpdated) + " | " + currencyPair.counter.toString() + " = "  +  String.format("%.8f", exchange1CounterUpdated));
-	    System.out.println(exchange2.getName() + ": "  + currencyPair.base.toString() + " = " + String.format("%.8f", exchange2BaseUpdated) + " | " + currencyPair.counter.toString() + " = "  +  String.format("%.8f", exchange2CounterUpdated));
-	    
-		if(startup){
-		    System.out.println("Total: " + currencyPair.base.toString()  + " = " + totalBase + " | " + currencyPair.counter.toString()  + " = " + totalCounter);
-			startUpBase = totalBase;
-			startUpCounter = totalCounter;
-			startup = false;
-		} else {
-		    System.out.println("Total: " + currencyPair.base.toString()  + " = " + totalBase + " (" + String.format("%.8f", (totalBase - this.totalBase)) + ") " + currencyPair.counter.toString()  + " = " + totalCounter + " (" + String.format("%.8f", ((totalCounter - this.totalCounter))) + ")");
-	    	System.out.println("Profit since Start: ETH = " + String.format("%.8f", ((totalBase - startUpBase))) + " LTC = " + String.format("%.8f", ((totalCounter - startUpCounter))));
-		}
-	    
-	    //Update Class Variables
-		this.exchange1Base = exchange1BaseUpdated;
-		this.exchange1Counter = exchange1CounterUpdated;
-		this.exchange2Base = exchange2BaseUpdated;
-		this.exchange2Counter = exchange2CounterUpdated;
-		this.totalBase = totalBase;
-		this.totalCounter = totalCounter;
-		balanceChanged = false;
-	}
-	
-	public void updateMarketData() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{
-				
-		// Multi-threaded Implementation
-		Callable<OrderBook> callable_btcMarketsOrderBookEthBtc = () -> {
-		    return exchange1.getOrderbook();
-		};
-		
-		Callable<OrderBook> callable_bittrexOrderBookBtcEth = () -> {
-		    return exchange2.getOrderbook();
-		};
-		
-		Future<OrderBook> future_btceOrderBookEthLtc = networkExecutorService.submit(callable_btcMarketsOrderBookEthBtc);
-		Future<OrderBook> future_bittrexOrderBookLtcEth = networkExecutorService.submit(callable_bittrexOrderBookBtcEth);	
-		
-		
-		try {
-			exchange1Orderbook= future_btceOrderBookEthLtc.get();
-			exchange2Orderbook = future_bittrexOrderBookLtcEth.get();
-			
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ExecutionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-	
-	// Calcultate Arbitrage
-	private double getArbitragePercentage(double ask, double bid){
-		return (1 - ask/bid) * 100;
-	}
-	
-	public void arbTest1(){
-		double exchange1Ask = 0;
-	    double exchange1Amount = 0;
-		for (LimitOrder limitOrder : exchange1Orderbook.getAsks()) {
-//			if (limitOrder.getTradableAmount().doubleValue() > btceEthWithdrawFee) {
-				exchange1Ask = limitOrder.getLimitPrice().doubleValue();
-				exchange1Amount = limitOrder.getTradableAmount().doubleValue();
-				break;
-//			}
-		}
-
-
-	    double exchange2Bid = 0;
-		double exchange2Amount = 0;
-		for (LimitOrder limitOrder : exchange2Orderbook.getBids()) {
-//			if (limitOrder.getTradableAmount().doubleValue() > bittrexLtcWithdrawFee) {
-				exchange2Bid = limitOrder.getLimitPrice().doubleValue();
-				exchange2Amount = limitOrder.getTradableAmount().doubleValue();
-				break;
-//			}
-		}
-		
-		double arbitragePercentage = getArbitragePercentage(exchange1Ask, exchange2Bid);
-		if(arbitragePercentage > 0) {
-			System.out.println("Arb1: " + String.format("%.8f",arbitragePercentage));
-		}
-	}
-	
-	public void arbTest2(){
-		double exchange1Ask = 0;
-	    double exchange1Amount = 0;
-		for (LimitOrder limitOrder : exchange1Orderbook.getBids()) {
-//			if (limitOrder.getTradableAmount().doubleValue() > btceEthWithdrawFee) {
-				exchange1Ask = limitOrder.getLimitPrice().doubleValue();
-				exchange1Amount = limitOrder.getTradableAmount().doubleValue();
-				break;
-//			}
-		}
-
-
-	    double exchange2Bid = 0;
-		double exchange2Amount = 0;
-		for (LimitOrder limitOrder : exchange2Orderbook.getAsks()) {
-//			if (limitOrder.getTradableAmount().doubleValue() > bittrexLtcWithdrawFee) {
-				exchange2Bid = limitOrder.getLimitPrice().doubleValue();
-				exchange2Amount = limitOrder.getTradableAmount().doubleValue();
-				break;
-//			}
-		}
-		
-		double arbitragePercentage = getArbitragePercentage(exchange2Bid, exchange1Ask);
-		if(arbitragePercentage > 0) {
-			System.out.println("Arb2: " +  String.format("%.8f",arbitragePercentage));
-		}
 	}
 	
 	public void arbitrageEthLtc1() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException{
@@ -479,6 +352,133 @@ public class Old_Arbitrager {
 			} else {
 				System.err.println("Arbitrage = " + arbitragePercentage);
 			}
+		}
+	}
+	
+	public void arbTest1(){
+		double exchange1Ask = 0;
+	    double exchange1Amount = 0;
+		for (LimitOrder limitOrder : exchange1Orderbook.getAsks()) {
+//			if (limitOrder.getTradableAmount().doubleValue() > btceEthWithdrawFee) {
+				exchange1Ask = limitOrder.getLimitPrice().doubleValue();
+				exchange1Amount = limitOrder.getTradableAmount().doubleValue();
+				break;
+//			}
+		}
+
+
+	    double exchange2Bid = 0;
+		double exchange2Amount = 0;
+		for (LimitOrder limitOrder : exchange2Orderbook.getBids()) {
+//			if (limitOrder.getTradableAmount().doubleValue() > bittrexLtcWithdrawFee) {
+				exchange2Bid = limitOrder.getLimitPrice().doubleValue();
+				exchange2Amount = limitOrder.getTradableAmount().doubleValue();
+				break;
+//			}
+		}
+		
+		double arbitragePercentage = getArbitragePercentage(exchange1Ask, exchange2Bid);
+		if(arbitragePercentage > 0) {
+			System.out.println("Arb1: " + String.format("%.8f",arbitragePercentage));
+		}
+	}
+	
+	public void arbTest2(){
+		double exchange1Ask = 0;
+	    double exchange1Amount = 0;
+		for (LimitOrder limitOrder : exchange1Orderbook.getBids()) {
+//			if (limitOrder.getTradableAmount().doubleValue() > btceEthWithdrawFee) {
+				exchange1Ask = limitOrder.getLimitPrice().doubleValue();
+				exchange1Amount = limitOrder.getTradableAmount().doubleValue();
+				break;
+//			}
+		}
+
+
+	    double exchange2Bid = 0;
+		double exchange2Amount = 0;
+		for (LimitOrder limitOrder : exchange2Orderbook.getAsks()) {
+//			if (limitOrder.getTradableAmount().doubleValue() > bittrexLtcWithdrawFee) {
+				exchange2Bid = limitOrder.getLimitPrice().doubleValue();
+				exchange2Amount = limitOrder.getTradableAmount().doubleValue();
+				break;
+//			}
+		}
+		
+		double arbitragePercentage = getArbitragePercentage(exchange2Bid, exchange1Ask);
+		if(arbitragePercentage > 0) {
+			System.out.println("Arb2: " +  String.format("%.8f",arbitragePercentage));
+		}
+	}
+	
+	// Calcultate Arbitrage
+	private double getArbitragePercentage(double ask, double bid){
+		return (1 - ask/bid) * 100;
+	}
+	
+	public void updateBalances() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{
+		//Update Balances on Exchanges
+		//TODO: multithreaded balance check
+		exchange1.checkBalances();
+		exchange2.checkBalances();
+		
+		//Get Amounts
+		double exchange1BaseUpdated = exchange1.getBaseAmount();
+		double exchange1CounterUpdated = exchange1.getCounterAmount();
+		double exchange2BaseUpdated = exchange2.getBaseAmount();
+		double exchange2CounterUpdated = exchange2.getCounterAmount();
+		
+		double totalBase = exchange1Base + exchange2Base;
+		double totalCounter = exchange1Counter + exchange2Counter;
+			    
+	    System.out.println(exchange1.getName() + ": "  + currencyPair.base.toString() + " = " + String.format("%.8f", exchange1BaseUpdated) + " | " + currencyPair.counter.toString() + " = "  +  String.format("%.8f", exchange1CounterUpdated));
+	    System.out.println(exchange2.getName() + ": "  + currencyPair.base.toString() + " = " + String.format("%.8f", exchange2BaseUpdated) + " | " + currencyPair.counter.toString() + " = "  +  String.format("%.8f", exchange2CounterUpdated));
+	    
+		if(startup){
+		    System.out.println("Total: " + currencyPair.base.toString()  + " = " + totalBase + " | " + currencyPair.counter.toString()  + " = " + totalCounter);
+			startUpBase = totalBase;
+			startUpCounter = totalCounter;
+			startup = false;
+		} else {
+		    System.out.println("Total: " + currencyPair.base.toString()  + " = " + totalBase + " (" + String.format("%.8f", (totalBase - this.totalBase)) + ") " + currencyPair.counter.toString()  + " = " + totalCounter + " (" + String.format("%.8f", ((totalCounter - this.totalCounter))) + ")");
+	    	System.out.println("Profit since Start: ETH = " + String.format("%.8f", ((totalBase - startUpBase))) + " LTC = " + String.format("%.8f", ((totalCounter - startUpCounter))));
+		}
+	    
+	    //Update Class Variables
+		this.exchange1Base = exchange1BaseUpdated;
+		this.exchange1Counter = exchange1CounterUpdated;
+		this.exchange2Base = exchange2BaseUpdated;
+		this.exchange2Counter = exchange2CounterUpdated;
+		this.totalBase = totalBase;
+		this.totalCounter = totalCounter;
+		balanceChanged = false;
+	}
+	
+	public void updateMarketData() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{
+				
+		// Multi-threaded Implementation
+		Callable<OrderBook> callable_btcMarketsOrderBookEthBtc = () -> {
+		    return exchange1.getOrderbook();
+		};
+		
+		Callable<OrderBook> callable_bittrexOrderBookBtcEth = () -> {
+		    return exchange2.getOrderbook();
+		};
+		
+		Future<OrderBook> future_btceOrderBookEthLtc = networkExecutorService.submit(callable_btcMarketsOrderBookEthBtc);
+		Future<OrderBook> future_bittrexOrderBookLtcEth = networkExecutorService.submit(callable_bittrexOrderBookBtcEth);	
+		
+		
+		try {
+			exchange1Orderbook= future_btceOrderBookEthLtc.get();
+			exchange2Orderbook = future_bittrexOrderBookLtcEth.get();
+			
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ExecutionException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 	

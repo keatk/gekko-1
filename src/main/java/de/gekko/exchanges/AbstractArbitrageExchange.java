@@ -16,12 +16,11 @@ import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.exceptions.NotAvailableFromExchangeException;
 import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
+import org.knowm.xchange.service.account.AccountService;
 import org.knowm.xchange.service.marketdata.MarketDataService;
 import org.knowm.xchange.service.trade.TradeService;
 
 import de.gekko.enums.ExchangeType;
-
-import org.knowm.xchange.service.account.AccountService;
 
 /**
  * 
@@ -31,23 +30,37 @@ public abstract class AbstractArbitrageExchange {
 
 	protected AccountService accountService;
 
-	private String apiKey;
+	/**
+	 * Speichert den ApiKey des Exchanges, wird aus Configfile gelesen.
+	 */
+	private final String apiKey;
 
 	protected double baseAmount = 0;
 	protected double counterAmount = 0;
 
+	/**
+	 * Speichert das CurrencyPair. 
+	 */
 	protected CurrencyPair currencyPair;
 
 	private int decimals;
+	/**
+	 * Speichert den Exchange.
+	 */
 	private Exchange exchange;
-	private ExchangeType type;
 	private MarketDataService marketDataService;
-
-	private String name;
-	private String secretKey;
+	/**
+	 * Speichert den SecretKey des Exchanges, wird aus dem Configfile gelesen.
+	 */
+	private final String secretKey;
 
 	private TradeService tradeService;
+
 	private double tradingFee;
+	/**
+	 * Speichert den Typen. Der Typ bestimmt, welche Unterklasse initialisiert wird.
+	 */
+	private ExchangeType type;
 
 	public AbstractArbitrageExchange(ExchangeType type, String apiKey, String secretKey, CurrencyPair currencyPair) {
 		this.currencyPair = currencyPair;
@@ -71,18 +84,6 @@ public abstract class AbstractArbitrageExchange {
 		accountService = exchange.getAccountService();
 	}
 
-	public String getApikey() {
-		return apiKey;
-	}
-
-	public String getSecretkey() {
-		return secretKey;
-	}
-
-	public ExchangeType getType() {
-		return type;
-	}
-
 	public void checkBalances() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
 			ExchangeException, IOException {
 		Map<Currency, Balance> balances = accountService.getAccountInfo().getWallet().getBalances();
@@ -90,28 +91,36 @@ public abstract class AbstractArbitrageExchange {
 		counterAmount = balances.get(currencyPair.counter).getTotal().doubleValue();
 	}
 
+	public String getApikey() {
+		return apiKey;
+	}
+
 	public double getBaseAmount() {
 		return baseAmount;
+	}
+
+	public double getCounterAmount() {
+		return counterAmount;
+	}
+
+	public CurrencyPair getCurrenyPair() {
+		return currencyPair;
 	}
 
 	// public void setBaseAmount(double baseAmount) {
 	// this.baseAmount = baseAmount;
 	// }
 
-	public double getCounterAmount() {
-		return counterAmount;
+	public int getDecimals() {
+		return decimals;
 	}
 
 	// public void setCounterAmount(double counterAmount) {
 	// this.counterAmount = counterAmount;
 	// }
 
-	public int getDecimals() {
-		return decimals;
-	}
-
 	public String getName() {
-		return name;
+		return toString();
 	}
 
 	public OrderBook getOrderbook() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
@@ -119,10 +128,18 @@ public abstract class AbstractArbitrageExchange {
 		return marketDataService.getOrderBook(currencyPair);
 	}
 
+	public String getSecretkey() {
+		return secretKey;
+	}
+
 	public double getTradingFee() {
 		return tradingFee;
 	}
 
+	public ExchangeType getType() {
+		return type;
+	}
+	
 	public void setDecimals(int decimals) {
 		this.decimals = decimals;
 	}
@@ -149,9 +166,5 @@ public abstract class AbstractArbitrageExchange {
 		LimitOrder limitOrder = new LimitOrder.Builder(OrderType.BID, currencyPair).limitPrice(askPrice)
 				.tradableAmount(askAmount).build();
 		return tradeService.placeLimitOrder(limitOrder);
-	}
-
-	public CurrencyPair getCurrenyPair() {
-		return currencyPair;
 	}
 }

@@ -48,13 +48,13 @@ public class ResourceManager {
 	 */
 	private static final Map<String, Image> MAP_ICONS = new HashMap<>();
 	/**
-	 * Speichert den Pfad zu den Icons im Classpath. Wird derzeit nicht benötigt.
-	 */
-	private static final String PATH_ICONS = "/icons/";
-	/**
 	 * Speichert den Pfad zum Configfile. Dort werden die Exchanges gespeichert.
 	 */
 	private static final String PATH_CONFIG_FILE = "/config.json";
+	/**
+	 * Speichert den Pfad zu den Icons im Classpath. Wird derzeit nicht benötigt.
+	 */
+	private static final String PATH_ICONS = "/icons/";
 	/**
 	 * Speichert den Pfad zum Resourcefile. Dort werden die Pfadverweise der Icons
 	 * gespeichert. Wird derzeit nicht benötigt.
