@@ -38,21 +38,21 @@ public class Arbitrager {
 	 * Speichert den Logger.
 	 */
 	private static final Logger LOGGER = LoggerFactory.getLogger("Arbitrager");
-
 	private static final double arbitrageMargin = 0.45;
 	/**
-	 * Speichert das maximale Tradelimit in ETH. (?)
+	 * Speichert das maximale Tradelimit in ETH. Menge an Coints, die maximial benutzt werden dürfen.
 	 */
 	private static final double maxTradeLimit = 0.03;
 	/**
-	 * Speichert das minimale Tradelimit in ETH. (?)
+	 * Speichert das minimale Tradelimit in ETH. Menge an Coints, die minimal benutzt werden müssen.
 	 */
 	private static final double minTradeLimit = 0.01;
-
+	/**
+	 * Falls Trades durchgeführt werden, wird auf true gesetzt. Bevor ein neuer Trade gemacht wird, müssen balances gechecks werden.
+	 */
 	private boolean balanceChanged = false;
 	/**
-	 * Speichert das CurrencyPair, das getraded wird. Derzeit immer BTC, LTC
-	 * getauscht. (?)
+	 * Speichert das CurrencyPair, das getraded wird.
 	 */
 	private CurrencyPair currencyPair;
 	/**
@@ -79,8 +79,14 @@ public class Arbitrager {
 	 */
 	ExecutorService networkExecutorService = Executors.newFixedThreadPool(2);
 	private boolean startup = true;
+	/**
+	 * Menge der Coins auf den Exchanges. (?)
+	 */
 	private double startUpBase = -1;
 	private double startUpCounter = -1;
+	/**
+	 * Summe der Coins auf beiden Exchanges.
+	 */
 	private double totalBase;
 	private double totalCounter;
 
@@ -158,13 +164,13 @@ public class Arbitrager {
 				}
 
 				// Perform Trades - Multi-threaded Implementation
-				String exchange1TradeBid = exchange1.builtTradeBid(btceAsk, tradeAmountETH);
 				Callable<String> callable_btceTrade = () -> {
+					String exchange1TradeBid = exchange1.builtTradeBid(btceAsk, tradeAmountETH);
 					return exchange1TradeBid;
 				};
-
-				String exchange2TradeBid = exchange2.builtTradeBid(bittrexBid, tradeAmountLTC);
+			
 				Callable<String> callable_bittrexTrade = () -> {
+					String exchange2TradeBid = exchange2.builtTradeBid(bittrexBid, tradeAmountLTC);
 					return exchange2TradeBid;
 				};
 
@@ -195,30 +201,6 @@ public class Arbitrager {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				//
-				//
-				//
-				// BigDecimal bittrexTradeBid = BigDecimal.valueOf(bittrexBid).setScale(8,
-				// BigDecimal.ROUND_HALF_UP);
-				// BigDecimal bittrexTradeAmount =
-				// BigDecimal.valueOf(tradeAmountLTC).setScale(8,BigDecimal.ROUND_HALF_UP);
-				// LimitOrder bittrexLimitOrder = new LimitOrder.Builder(OrderType.BID,
-				// ltc_eth).limitPrice(bittrexTradeBid).tradableAmount(bittrexTradeAmount).build();
-				// String uuid = bittrexTradeService.placeLimitOrder(bittrexLimitOrder);
-				//
-				// System.out.println("Order1 Placed:" + uuid);
-				//
-				// BigDecimal btceTradeBid = BigDecimal.valueOf(btceAsk).setScale(5,
-				// BigDecimal.ROUND_HALF_UP);
-				// BigDecimal btceTradeAmount =
-				// BigDecimal.valueOf(tradeAmountETH).setScale(5,BigDecimal.ROUND_HALF_UP);
-				// LimitOrder btceLimitOrder = new LimitOrder.Builder(OrderType.BID,
-				// eth_ltc).limitPrice(btceTradeBid).tradableAmount(btceTradeAmount).build();
-				// String uuid1 = btceTradeService.placeLimitOrder(btceLimitOrder);
-
-				//
-				// System.out.println("Order2 Placed:" + uuid1);
-				// System.out.println("Arbitrage successfull.");
 
 				balanceChanged = true;
 
@@ -358,31 +340,6 @@ public class Arbitrager {
 							+ bittrexTradeAmount + " LTC");
 					System.exit(1);
 				}
-
-				// try {
-				// //Trades veranlassen
-				//
-				// LimitOrder bittrexLimitOrder = new LimitOrder.Builder(OrderType.ASK,
-				// ltc_eth).limitPrice(bittrexTradeAsk).tradableAmount(bittrexTradeAmount).build();
-				// uuid = bittrexTradeService.placeLimitOrder(bittrexLimitOrder);
-				//
-				// System.out.println("Order1 Placed:" + uuid);
-				//
-				//
-				// LimitOrder btceLimitOrder = new LimitOrder.Builder(OrderType.ASK,
-				// eth_ltc).limitPrice(btceTradeAsk).tradableAmount(btceTradeAmount).build();
-				// uuid1 = btceTradeService.placeLimitOrder(btceLimitOrder);
-				//
-				// System.out.println("Order2 Placed:" + uuid1);
-				//
-				// } catch(Exception exception) {
-				// exception.printStackTrace();
-				// boolean cancelled = bittrexTradeService.cancelOrder(uuid);
-				// boolean cancelled1 = btceTradeService.cancelOrder(uuid1);
-				// System.err.println("Trade Amount BTCE = " + btceTradeAmount + "ETH | Bittrex
-				// = " + bittrexTradeAmount + " LTC");
-				// System.exit(1);
-				// }
 
 				balanceChanged = true;
 			} else {

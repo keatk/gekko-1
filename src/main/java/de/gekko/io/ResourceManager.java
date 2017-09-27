@@ -135,13 +135,13 @@ public class ResourceManager {
 			switch (type) {
 			case BITFINEX:
 				listExchanges.add(new BittrexArbitrageExchange(type, apiKey, secretKey,
-						new CurrencyPair(Currency.getInstance(currency.get("x").getAsString()),
-								Currency.getInstance(currency.get("y").getAsString()))));
+						new CurrencyPair(Currency.getInstance(currency.get("base").getAsString()),
+								Currency.getInstance(currency.get("counter").getAsString()))));
 				break;
 			case BITTREX:
 				listExchanges.add(new BitfinexArbitrageExchange(type, apiKey, secretKey,
-						new CurrencyPair(Currency.getInstance(currency.get("x").getAsString()),
-								Currency.getInstance(currency.get("y").getAsString()))));
+						new CurrencyPair(Currency.getInstance(currency.get("base").getAsString()),
+								Currency.getInstance(currency.get("counter").getAsString()))));
 				break;
 			default:
 				break;
