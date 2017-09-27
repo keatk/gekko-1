@@ -27,10 +27,17 @@ import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
 import org.knowm.xchange.service.account.AccountService;
 import org.knowm.xchange.service.marketdata.MarketDataService;
 import org.knowm.xchange.service.trade.TradeService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import de.gekko.exchanges.AbstractArbitrageExchange;
 
 public class Arbitrager {
+
+	/**
+	 * Speichert den Logger.
+	 */
+	private static final Logger LOGGER = LoggerFactory.getLogger("Arbitrager");
 
 	private static final double arbitrageMargin = 0.45;
 	/**
@@ -41,7 +48,7 @@ public class Arbitrager {
 	 * Speichert das minimale Tradelimit in ETH. (?)
 	 */
 	private static final double minTradeLimit = 0.01;
-	
+
 	private boolean balanceChanged = false;
 	/**
 	 * Speichert das CurrencyPair, das getraded wird. Derzeit immer BTC, LTC
@@ -89,6 +96,7 @@ public class Arbitrager {
 
 	public void arbitrageEthLtc1() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
 			ExchangeException, IOException, InterruptedException {
+		LOGGER.trace("arbitrageETHLTC1()");
 		if (balanceChanged) {
 			Thread.sleep(1000);
 			updateBalances();
@@ -149,40 +157,30 @@ public class Arbitrager {
 					return;
 				}
 
-				// Create Trade Numbers
-				BigDecimal btceTradeBid = BigDecimal.valueOf(btceAsk).setScale(5, BigDecimal.ROUND_HALF_UP);
-				BigDecimal btceTradeAmount = BigDecimal.valueOf(tradeAmountETH).setScale(5, BigDecimal.ROUND_HALF_UP);
-
-				BigDecimal bittrexTradeBid = BigDecimal.valueOf(bittrexBid).setScale(8, BigDecimal.ROUND_HALF_UP);
-				BigDecimal bittrexTradeAmount = BigDecimal.valueOf(tradeAmountLTC).setScale(8,
-						BigDecimal.ROUND_HALF_UP);
-
 				// Perform Trades - Multi-threaded Implementation
+				String exchange1TradeBid = exchange1.builtTradeBid(btceAsk, tradeAmountETH);
 				Callable<String> callable_btceTrade = () -> {
-					LimitOrder btceLimitOrder = new LimitOrder.Builder(OrderType.BID, eth_ltc).limitPrice(btceTradeBid)
-							.tradableAmount(btceTradeAmount).build();
-					return btceTradeService.placeLimitOrder(btceLimitOrder);
+					return exchange1TradeBid;
 				};
 
+				String exchange2TradeBid = exchange2.builtTradeBid(bittrexBid, tradeAmountLTC);
 				Callable<String> callable_bittrexTrade = () -> {
-					LimitOrder bittrexLimitOrder = new LimitOrder.Builder(OrderType.BID, ltc_eth)
-							.limitPrice(bittrexTradeBid).tradableAmount(bittrexTradeAmount).build();
-					return bittrexTradeService.placeLimitOrder(bittrexLimitOrder);
+					return exchange2TradeBid;
 				};
 
 				Future<String> future_btceTrade = networkExecutorService.submit(callable_btceTrade);
 				Future<String> future_bittrexTrade = networkExecutorService.submit(callable_bittrexTrade);
 
-				System.out.println("====================ARBIT1====================");
-				System.out.println("[btceAsk] Best profitable ask: " + btceAsk + " Amount: " + btceAmount);
-				System.out.println("[bittrexBid] Best profitable bid: " + (1.0 / bittrexBid) + "[" + bittrexBid + "]"
-						+ " Amount: " + bittrexAmount);
-				System.out.println("Arbitrage = " + arbitragePercentage);
-				System.out
-						.println("BTC-e - BUY Amount[ETH]: " + tradeAmountETH + " SELL Amount[LTC]: " + tradeAmountLTC);
-				System.out.println("Bittrex - SELL Amount[ETH]: " + ((tradeAmountLTC * bittrexBid) + bittrexFeeAbsolute)
-						+ " BUY Amount[LTC]: " + tradeAmountLTC);
-				System.out.println("Profit: " + String.format("%.8f", profit) + " ETH");
+				LOGGER.trace("====================ARBIT1====================");
+				LOGGER.trace("[ASK: {}] Best profitable ask: {} Amount: {}", exchange1.getName(), btceAsk, btceAmount);
+				LOGGER.trace("[BID: {}] Best profitable bid: {} [{}] Amount: {}", exchange2.getName(),
+						(1.0 / bittrexBid), bittrexBid, bittrexAmount);
+				LOGGER.trace("Arbitrage = {}", arbitragePercentage);
+				LOGGER.trace("[{}] BUY Amount[ETH]: {}, SELL Amount[LTC]: {}", exchange1.getName(), tradeAmountETH,
+						tradeAmountLTC);
+				LOGGER.trace("[{}] SELL Amount[ETH]: {}, BUY Amount[LTC]: {}", exchange2.getName(),
+						((tradeAmountLTC * bittrexBid) + bittrexFeeAbsolute), tradeAmountLTC);
+				LOGGER.trace("Profit: {} ETH", String.format("%.8f", profit));
 
 				try {
 					String uuid = future_bittrexTrade.get();
@@ -454,12 +452,14 @@ public class Arbitrager {
 
 	public void updateBalances() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
 			ExchangeException, IOException {
+		LOGGER.trace("updateBalances()");
 		// Update Balances on Exchanges
 		// TODO: multithreaded balance check
 		exchange1.checkBalances();
 		exchange2.checkBalances();
 
 		// Get Amounts
+		LOGGER.trace("Get Amounts");
 		double exchange1BaseUpdated = exchange1.getBaseAmount();
 		double exchange1CounterUpdated = exchange1.getCounterAmount();
 		double exchange2BaseUpdated = exchange2.getBaseAmount();
@@ -468,12 +468,12 @@ public class Arbitrager {
 		double totalBase = exchange1Base + exchange2Base;
 		double totalCounter = exchange1Counter + exchange2Counter;
 
-		System.out.println(exchange1.getName() + ": " + currencyPair.base.toString() + " = "
-				+ String.format("%.8f", exchange1BaseUpdated) + " | " + currencyPair.counter.toString() + " = "
-				+ String.format("%.8f", exchange1CounterUpdated));
-		System.out.println(exchange2.getName() + ": " + currencyPair.base.toString() + " = "
-				+ String.format("%.8f", exchange2BaseUpdated) + " | " + currencyPair.counter.toString() + " = "
-				+ String.format("%.8f", exchange2CounterUpdated));
+		LOGGER.trace("{}: {} = {} | {} = {}", exchange1.getName(), currencyPair.base,
+				String.format("%.8f", exchange1BaseUpdated), currencyPair.counter,
+				String.format("%.8f", exchange1CounterUpdated));
+		LOGGER.trace("{}: {} = {} | {} = {}", exchange2.getName(), currencyPair.base,
+				String.format("%.8f", exchange2BaseUpdated), currencyPair.counter,
+				String.format("%.8f", exchange2CounterUpdated));
 
 		if (startup) {
 			System.out.println("Total: " + currencyPair.base.toString() + " = " + totalBase + " | "
@@ -482,11 +482,11 @@ public class Arbitrager {
 			startUpCounter = totalCounter;
 			startup = false;
 		} else {
-			System.out.println("Total: " + currencyPair.base.toString() + " = " + totalBase + " ("
-					+ String.format("%.8f", (totalBase - this.totalBase)) + ") " + currencyPair.counter.toString()
-					+ " = " + totalCounter + " (" + String.format("%.8f", ((totalCounter - this.totalCounter))) + ")");
-			System.out.println("Profit since Start: ETH = " + String.format("%.8f", ((totalBase - startUpBase)))
-					+ " LTC = " + String.format("%.8f", ((totalCounter - startUpCounter))));
+			LOGGER.trace("Total: {} = {} ({}) {} = {} ({})", currencyPair.base, totalBase,
+					String.format("%.8f", (totalBase - this.totalBase)), currencyPair.counter, totalCounter,
+					String.format("%.8f", ((totalCounter - this.totalCounter))));
+			LOGGER.trace("Profit since Start: ETH = {}, LTC = {}", String.format("%.8f", ((totalBase - startUpBase))),
+					String.format("%.8f", ((totalCounter - startUpCounter))));
 		}
 
 		// Update Class Variables

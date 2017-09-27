@@ -28,34 +28,49 @@ import de.gekko.enums.ExchangeType;
  */
 public abstract class AbstractArbitrageExchange {
 
+	/**
+	 * Speichert den AccountService. (?)
+	 */
 	protected AccountService accountService;
-
 	/**
 	 * Speichert den ApiKey des Exchanges, wird aus Configfile gelesen.
 	 */
 	private final String apiKey;
-
-	protected double baseAmount = 0;
-	protected double counterAmount = 0;
-
 	/**
-	 * Speichert das CurrencyPair. 
+	 * Speichert die Menge der Base Currency.
+	 */
+	protected double baseAmount = 0;
+	/**
+	 * Speichert die Menge der Counter Currency.
+	 */
+	protected double counterAmount = 0;
+	/**
+	 * Speichert das CurrencyPair.
 	 */
 	protected CurrencyPair currencyPair;
-
+	/**
+	 * Speichert die Anzahl Nachkommastellen. (?)
+	 */
 	private int decimals;
 	/**
 	 * Speichert den Exchange.
 	 */
 	private Exchange exchange;
+	/**
+	 * Speichert den MarketDataService. (?)
+	 */
 	private MarketDataService marketDataService;
 	/**
 	 * Speichert den SecretKey des Exchanges, wird aus dem Configfile gelesen.
 	 */
 	private final String secretKey;
-
+	/**
+	 * Speichert den TradeService. (?)
+	 */
 	private TradeService tradeService;
-
+	/**
+	 * Speichert die Tradingfee des Exchanges.
+	 */
 	private double tradingFee;
 	/**
 	 * Speichert den Typen. Der Typ bestimmt, welche Unterklasse initialisiert wird.
@@ -139,7 +154,7 @@ public abstract class AbstractArbitrageExchange {
 	public ExchangeType getType() {
 		return type;
 	}
-	
+
 	public void setDecimals(int decimals) {
 		this.decimals = decimals;
 	}
@@ -148,7 +163,7 @@ public abstract class AbstractArbitrageExchange {
 		this.tradingFee = tradingFee;
 	}
 
-	public String tradeAsk(double askPriceDouble, double askAmountDouble) throws NotAvailableFromExchangeException,
+	public String builtTradeAsk(double askPriceDouble, double askAmountDouble) throws NotAvailableFromExchangeException,
 			NotYetImplementedForExchangeException, ExchangeException, IOException {
 		BigDecimal askPrice = BigDecimal.valueOf(askPriceDouble).setScale(decimals, BigDecimal.ROUND_HALF_UP);
 		BigDecimal askAmount = BigDecimal.valueOf(askAmountDouble).setScale(decimals, BigDecimal.ROUND_HALF_UP);
@@ -158,10 +173,10 @@ public abstract class AbstractArbitrageExchange {
 		return tradeService.placeLimitOrder(limitOrder);
 	}
 
-	public String tradeBid(double askPriceDouble, double askAmountDouble) throws NotAvailableFromExchangeException,
+	public String builtTradeBid(double bidPrice, double bidAmount) throws NotAvailableFromExchangeException,
 			NotYetImplementedForExchangeException, ExchangeException, IOException {
-		BigDecimal askPrice = BigDecimal.valueOf(askPriceDouble).setScale(decimals, BigDecimal.ROUND_HALF_UP);
-		BigDecimal askAmount = BigDecimal.valueOf(askAmountDouble).setScale(decimals, BigDecimal.ROUND_HALF_UP);
+		BigDecimal askPrice = BigDecimal.valueOf(bidPrice).setScale(decimals, BigDecimal.ROUND_HALF_UP);
+		BigDecimal askAmount = BigDecimal.valueOf(bidAmount).setScale(decimals, BigDecimal.ROUND_HALF_UP);
 
 		LimitOrder limitOrder = new LimitOrder.Builder(OrderType.BID, currencyPair).limitPrice(askPrice)
 				.tradableAmount(askAmount).build();
