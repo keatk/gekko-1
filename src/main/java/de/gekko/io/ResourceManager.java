@@ -80,7 +80,7 @@ public class ResourceManager {
 	 */
 	public static List<AbstractArbitrageExchange> loadConfigFile() {
 		try {
-			LOGGER.trace("Loading config file from {}", PATH_CONFIG_FILE);
+			LOGGER.info("Loading config file from {}", PATH_CONFIG_FILE);
 			final StringBuilder bldr = new StringBuilder();
 			final InputStream is = ResourceManager.class.getResourceAsStream(PATH_CONFIG_FILE);
 			final BufferedReader br = new BufferedReader(new InputStreamReader(is, "UTF-8"));
@@ -118,11 +118,12 @@ public class ResourceManager {
 	}
 
 	private static List<AbstractArbitrageExchange> parseConfigFile(String json) throws IOException {
-		LOGGER.trace("Parsing config file from {}", PATH_CONFIG_FILE);
+		LOGGER.info("Parsing config file from {}", PATH_CONFIG_FILE);
 		final JsonArray exchanges = new JsonParser().parse(json).getAsJsonObject().getAsJsonArray("exchanges");
 		final List<AbstractArbitrageExchange> listExchanges = new ArrayList<>();
 		for (int i = 0; i < exchanges.size(); i++) {
 			final JsonObject exchange = exchanges.get(i).getAsJsonObject();
+			
 			final ExchangeType type = ExchangeType.valueOf(exchange.get("name").getAsString());
 			final String apiKey = exchange.get("apikey").getAsString();
 			final String secretKey = exchange.get("secretkey").getAsString();
@@ -135,11 +136,12 @@ public class ResourceManager {
 				listExchanges.add(new BitfinexArbitrageExchange(apiKey, secretKey));
 				break;
 			case GDAX:
-				final String passphrase = exchange.get("passphrase").getAsString();
-				listExchanges.add(new GDaxArbitragerExchange(apiKey, secretKey, passphrase));
+				final String passPhrase = exchange.get("passphrase").getAsString();
+				listExchanges.add(new GDaxArbitragerExchange(apiKey, secretKey, passPhrase));
 				break;
 			case BITSTAMP:
-				listExchanges.add(new BitstampArbitragerExchange(apiKey, secretKey));
+				final String userName = exchange.get("username").getAsString();
+				listExchanges.add(new BitstampArbitragerExchange(apiKey, secretKey, userName));
 			default:
 				break;
 			}

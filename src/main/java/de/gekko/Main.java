@@ -14,7 +14,6 @@ import org.knowm.xchange.exceptions.NotAvailableFromExchangeException;
 import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.impl.SimpleLogger;
 
 import de.gekko.arbitrager.Arbitrager;
 import de.gekko.exchanges.AbstractArbitrageExchange;
@@ -29,12 +28,11 @@ public class Main {
 	
 	public static void main(String[] args) throws NotAvailableFromExchangeException,
 			NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
-		System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "DEBUG");
 
 		/**
 		 * Hier das derzeitige CurrencyPair eintragen.
 		 */
-		CurrencyPair currencyPair = new CurrencyPair(Currency.BTC, Currency.ETH);
+		CurrencyPair currencyPair = new CurrencyPair(Currency.ETH, Currency.BTC);
 
 		/**
 		 * Lade Exchanges aus Configfile und erstelle Arbitrager entsprechend der
@@ -47,27 +45,27 @@ public class Main {
 			for (int j = i + 1; j < listExhanges.size(); j++) {
 				Arbitrager arbitrager = new Arbitrager(listExhanges.get(i), listExhanges.get(j), currencyPair);
 				listArbitrager.add(arbitrager);
-				LOGGER.debug("Created new Arbitrager: {}", arbitrager);
+				LOGGER.info("Created new Arbitrager: {}", arbitrager);
 			}
 		}
 
 		long startTime = System.nanoTime();
 
 		while (true) {
-//			try {
-//				
-//				for(Arbitrager arbitrager: listArbitrager) {
-//					arbitrager.updateOrderbooks();
-//					arbitrager.limitOrderArbitrage();
-//					
-//					Thread.sleep(3000);
-//				}
-//
-//			} catch (ConnectException | SocketTimeoutException | UnknownHostException
-//					| si.mazi.rescu.HttpStatusIOException Exception) {
-//				System.err.println("Connection Failed. Retry in 30 sec...");
-//				Thread.sleep(30000);
-//			}
+			try {
+
+				for (Arbitrager arbitrager : listArbitrager) {
+					arbitrager.updateOrderbooks();
+					arbitrager.limitOrderArbitrage();
+
+					Thread.sleep(3000);
+				}
+
+			} catch (ConnectException | SocketTimeoutException | UnknownHostException
+					| si.mazi.rescu.HttpStatusIOException Exception) {
+				System.err.println("Connection Failed. Retry in 30 sec...");
+				Thread.sleep(30000);
+			}
 		}
 	}
 

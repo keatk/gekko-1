@@ -2,8 +2,6 @@ package de.gekko.old;
 
 import java.io.IOException;
 
-import org.knowm.xchange.ExchangeFactory;
-import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.bitfinex.v1.BitfinexExchange;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.exceptions.ExchangeException;

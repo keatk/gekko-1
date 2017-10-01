@@ -2,6 +2,8 @@ package de.gekko.exchanges;
 
 import java.io.IOException;
 
+import org.knowm.xchange.ExchangeFactory;
+import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.bitfinex.v1.BitfinexExchange;
 import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.exceptions.ExchangeException;
@@ -11,7 +13,14 @@ import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
 public class BitfinexArbitrageExchange extends AbstractArbitrageExchange {
 
 	public BitfinexArbitrageExchange(String apiKey, String secretKey) {
-		super(BitfinexExchange.class, apiKey, secretKey);
+		ExchangeSpecification exchangeSpecification = new ExchangeSpecification(BitfinexExchange.class.getName());
+		exchangeSpecification.setApiKey(apiKey);
+		exchangeSpecification.setSecretKey(secretKey);
+		exchange = ExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
+
+		marketDataService = exchange.getMarketDataService();
+		tradeService = exchange.getTradeService();
+		accountService = exchange.getAccountService();
 	}
 
 	@Override

@@ -1,17 +1,33 @@
 package de.gekko.exchanges;
 
+import java.io.IOException;
+
+import org.knowm.xchange.ExchangeFactory;
 import org.knowm.xchange.ExchangeSpecification;
+import org.knowm.xchange.currency.Currency;
+import org.knowm.xchange.exceptions.ExchangeException;
+import org.knowm.xchange.exceptions.NotAvailableFromExchangeException;
+import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
 import org.knowm.xchange.gdax.GDAXExchange;
 
 public class GDaxArbitragerExchange extends AbstractArbitrageExchange {
 
-	public GDaxArbitragerExchange(String apiKey, String secretKey, String passphrase) {
-		super(GDAXExchange.class, apiKey, secretKey);
+	public GDaxArbitragerExchange(String apiKey, String secretKey, String passPhrase) {
 		ExchangeSpecification exchangeSpecification = new ExchangeSpecification(GDAXExchange.class.getName());
 		exchangeSpecification.setApiKey(apiKey);
 		exchangeSpecification.setSecretKey(secretKey);
-		exchangeSpecification.setPassword(passphrase);
-		createExchange(exchangeSpecification);
+		exchangeSpecification.setExchangeSpecificParametersItem("passphrase", passPhrase);
+		exchange = ExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
+
+		marketDataService = exchange.getMarketDataService();
+		tradeService = exchange.getTradeService();
+		accountService = exchange.getAccountService();
+	}
+
+	@Override
+	public double checkBalance(Currency currency) throws NotAvailableFromExchangeException,
+			NotYetImplementedForExchangeException, ExchangeException, IOException {
+		return accountService.getAccountInfo().getWallet().getBalance(currency).getTotal().doubleValue();
 	}
 
 }
