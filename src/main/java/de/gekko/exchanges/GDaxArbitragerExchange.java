@@ -19,9 +19,7 @@ public class GDaxArbitragerExchange extends AbstractArbitrageExchange {
 		exchangeSpecification.setExchangeSpecificParametersItem("passphrase", passPhrase);
 		exchange = ExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
 
-		marketDataService = exchange.getMarketDataService();
-		tradeService = exchange.getTradeService();
-		accountService = exchange.getAccountService();
+		initServices();
 	}
 
 	@Override

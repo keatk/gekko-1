@@ -20,9 +20,7 @@ public class BitstampArbitragerExchange extends AbstractArbitrageExchange {
 		exchangeSpecification.setSecretKey(secretKey);
 		exchange = ExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
 
-		marketDataService = exchange.getMarketDataService();
-		tradeService = exchange.getTradeService();
-		accountService = exchange.getAccountService();
+		initServices();
 	}
 
 }
