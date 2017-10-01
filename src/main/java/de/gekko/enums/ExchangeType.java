@@ -1,8 +1,8 @@
 package de.gekko.enums;
 
 public enum ExchangeType {
-	
-	BITFINEX ("Bitfinex"), BITTREX ("Bitrex");
+
+	BITFINEX("Bitfinex"), BITSTAMP("Bitstamp"), BITTREX("Bitrex"), GDAX("GDax");
 
 	private final String displayName;
 
