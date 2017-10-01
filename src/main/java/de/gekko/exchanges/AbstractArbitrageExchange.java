@@ -143,6 +143,6 @@ public abstract class AbstractArbitrageExchange {
 
 	@Override
 	public String toString() {
-		return exchange.toString();
+		return exchange.getDefaultExchangeSpecification().getExchangeName();
 	}
 }

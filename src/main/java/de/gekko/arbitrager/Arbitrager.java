@@ -175,7 +175,8 @@ public class Arbitrager {
 		// Arbitrage berechnen
 		double arbitragePercentage = getArbitragePercentage(exchange1Ask, exchange2Bid);
 		if (arbitragePercentage > 0) {
-			LOGGER.info("Arbitrage: {}", String.format("%.8f", arbitragePercentage));
+			LOGGER.info("[{} -> {}] Arbitrage: {}, Min: {}", exchange1.toString(), exchange2.toString(),
+					String.format("%.8f", arbitragePercentage), arbitrageMargin);
 		}
 
 		// Falls Arbitrage-Schwellenwert erreicht dann trade
@@ -315,6 +316,7 @@ public class Arbitrager {
 	 */
 	public void updateOrderbooks() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
 			ExchangeException, IOException {
+		LOGGER.info("Updating Orderbooks...");
 
 		// Multi-threaded Implementation
 		Callable<OrderBook> callable_exchange1Orderbook = () -> {
@@ -330,8 +332,11 @@ public class Arbitrager {
 
 		try {
 			exchange1Orderbook = future_exchange1Orderbook.get();
+			LOGGER.info("[{}] Orderbook: ask = {}", exchange1, exchange1Orderbook.getAsks().get(0));
+			LOGGER.info("[{}] Orderbook: bid = {}", exchange1, exchange1Orderbook.getBids().get(0));
 			exchange2Orderbook = future_exchange2Orderbook.get();
-
+			LOGGER.info("[{}] Orderbook: ask = {}", exchange2, exchange2Orderbook.getAsks().get(0));
+			LOGGER.info("[{}] Orderbook: bid = {}", exchange2, exchange2Orderbook.getBids().get(0));
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
