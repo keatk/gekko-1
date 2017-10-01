@@ -15,8 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.knowm.xchange.currency.Currency;
-import org.knowm.xchange.currency.CurrencyPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +25,9 @@ import com.google.gson.JsonParser;
 import de.gekko.enums.ExchangeType;
 import de.gekko.exchanges.AbstractArbitrageExchange;
 import de.gekko.exchanges.BitfinexArbitrageExchange;
+import de.gekko.exchanges.BitstampArbitragerExchange;
 import de.gekko.exchanges.BittrexArbitrageExchange;
+import de.gekko.exchanges.GDaxArbitragerExchange;
 import javafx.scene.image.Image;
 
 /**
@@ -119,30 +119,27 @@ public class ResourceManager {
 
 	private static List<AbstractArbitrageExchange> parseConfigFile(String json) throws IOException {
 		LOGGER.trace("Parsing config file from {}", PATH_CONFIG_FILE);
-		final JsonArray icons = new JsonParser().parse(json).getAsJsonObject().getAsJsonArray("exchanges");
+		final JsonArray exchanges = new JsonParser().parse(json).getAsJsonObject().getAsJsonArray("exchanges");
 		final List<AbstractArbitrageExchange> listExchanges = new ArrayList<>();
-		for (int i = 0; i < icons.size(); i++) {
-			final JsonObject icon = icons.get(i).getAsJsonObject();
-			final String name = icon.get("name").getAsString();
-			final String apiKey = icon.get("apikey").getAsString();
-			final String secretKey = icon.get("secretkey").getAsString();
-
-			final JsonArray currencies = new JsonParser().parse(json).getAsJsonObject().getAsJsonArray("exchanges");
-			final JsonObject currency = currencies.get(i).getAsJsonObject();
-
-			ExchangeType type = ExchangeType.valueOf(name);
+		for (int i = 0; i < exchanges.size(); i++) {
+			final JsonObject exchange = exchanges.get(i).getAsJsonObject();
+			final ExchangeType type = ExchangeType.valueOf(exchange.get("name").getAsString());
+			final String apiKey = exchange.get("apikey").getAsString();
+			final String secretKey = exchange.get("secretkey").getAsString();
 
 			switch (type) {
 			case BITFINEX:
-				listExchanges.add(new BittrexArbitrageExchange(type, apiKey, secretKey,
-						new CurrencyPair(Currency.getInstance(currency.get("base").getAsString()),
-								Currency.getInstance(currency.get("counter").getAsString()))));
+				listExchanges.add(new BittrexArbitrageExchange(apiKey, secretKey));
 				break;
 			case BITTREX:
-				listExchanges.add(new BitfinexArbitrageExchange(type, apiKey, secretKey,
-						new CurrencyPair(Currency.getInstance(currency.get("base").getAsString()),
-								Currency.getInstance(currency.get("counter").getAsString()))));
+				listExchanges.add(new BitfinexArbitrageExchange(apiKey, secretKey));
 				break;
+			case GDAX:
+				final String passphrase = exchange.get("passphrase").getAsString();
+				listExchanges.add(new GDaxArbitragerExchange(apiKey, secretKey, passphrase));
+				break;
+			case BITSTAMP:
+				listExchanges.add(new BitstampArbitragerExchange(apiKey, secretKey));
 			default:
 				break;
 			}

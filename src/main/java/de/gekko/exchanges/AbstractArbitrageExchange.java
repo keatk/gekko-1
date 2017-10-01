@@ -20,22 +20,20 @@ import org.knowm.xchange.service.account.AccountService;
 import org.knowm.xchange.service.marketdata.MarketDataService;
 import org.knowm.xchange.service.trade.TradeService;
 
-import de.gekko.enums.ExchangeType;
-
 /**
  * @author max boilerplate for implementing exchanges
  */
 public abstract class AbstractArbitrageExchange {
 
 	/**
-	 * Speichert den AccountService. (?)
+	 * Speichert den AccountService.
 	 */
 	protected AccountService accountService;
 
-	/**
-	 * Speichert den ApiKey des Exchanges, wird aus Configfile gelesen.
-	 */
-	private final String apiKey;
+	// /**
+	// * Speichert den ApiKey des Exchanges, wird aus Configfile gelesen.
+	// */
+	// private final String apiKey;
 
 	/**
 	 * Speichert die Anzahl Nachkommastellen die bei Trades erlaubt sind.
@@ -52,15 +50,14 @@ public abstract class AbstractArbitrageExchange {
 	 */
 	private MarketDataService marketDataService;
 
-	/**
-	 * Speichert den SecretKey des Exchanges, wird aus dem Configfile gelesen.
-	 */
-	private final String secretKey;
+	// /**
+	// * Speichert den SecretKey des Exchanges, wird aus dem Configfile gelesen.
+	// */
+	// private final String secretKey;
 
 	/**
 	 * Speichert den TradeService.
 	 */
-
 	private TradeService tradeService;
 
 	/**
@@ -68,21 +65,16 @@ public abstract class AbstractArbitrageExchange {
 	 */
 	private double tradingFee;
 
-	/**
-	 * Speichert den Typen. Der Typ bestimmt, welche Unterklasse initialisiert wird.
-	 */
-	private ExchangeType type;
-
-	public AbstractArbitrageExchange(ExchangeType type, String apiKey, String secretKey, CurrencyPair currencyPair) {
-		this.type = type;
-		this.apiKey = apiKey;
-		this.secretKey = secretKey;
+	public AbstractArbitrageExchange(Class exchangeClass, String apiKey, String secretKey) {
+		// this.apiKey = apiKey;
+		// this.secretKey = secretKey;
 
 		// Exchange Data
-		ExchangeSpecification exSpec = new ExchangeSpecification(type.toString());
-		exSpec.setApiKey(apiKey);
-		exSpec.setSecretKey(secretKey);
-		exchange = ExchangeFactory.INSTANCE.createExchange(exSpec);
+		exchange = ExchangeFactory.INSTANCE.createExchangeWithApiKeys(exchangeClass.getName(), apiKey, secretKey);
+		// ExchangeSpecification exSpec = new ExchangeSpecification(exchangeClass);
+		// exSpec.setApiKey(apiKey);
+		// exSpec.setSecretKey(secretKey);
+		// exchange = ExchangeFactory.INSTANCE.createExchange(exSpec);
 
 		// Market Data
 		marketDataService = exchange.getMarketDataService();
@@ -94,6 +86,34 @@ public abstract class AbstractArbitrageExchange {
 		accountService = exchange.getAccountService();
 	}
 
+	void createExchange(ExchangeSpecification exchangeSpecification) {
+		exchange = ExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
+
+		// Market Data
+		marketDataService = exchange.getMarketDataService();
+
+		// Trade Data
+		tradeService = exchange.getTradeService();
+
+		// Account Data
+		accountService = exchange.getAccountService();
+	}
+
+	/**
+	 * Bricht Order ab.
+	 * 
+	 * @param orderID
+	 * @return
+	 * @throws NotAvailableFromExchangeException
+	 * @throws NotYetImplementedForExchangeException
+	 * @throws ExchangeException
+	 * @throws IOException
+	 */
+	public boolean cancelOrder(String orderID) throws NotAvailableFromExchangeException,
+			NotYetImplementedForExchangeException, ExchangeException, IOException {
+		return tradeService.cancelOrder(orderID);
+	}
+
 	public double checkBalance(Currency currency) throws NotAvailableFromExchangeException,
 			NotYetImplementedForExchangeException, ExchangeException, IOException {
 
@@ -101,9 +121,9 @@ public abstract class AbstractArbitrageExchange {
 		return balances.get(currency).getTotal().doubleValue();
 	}
 
-	public String getApikey() {
-		return apiKey;
-	}
+	// public String getApikey() {
+	// return apiKey;
+	// }
 
 	public int getDecimals() {
 		return decimals;
@@ -118,24 +138,12 @@ public abstract class AbstractArbitrageExchange {
 		return marketDataService.getOrderBook(currencyPair);
 	}
 
-	public String getSecretkey() {
-		return secretKey;
-	}
+	// public String getSecretkey() {
+	// return secretKey;
+	// }
 
 	public double getTradingFee() {
 		return tradingFee;
-	}
-
-	public ExchangeType getType() {
-		return type;
-	}
-
-	public void setDecimals(int decimals) {
-		this.decimals = decimals;
-	}
-
-	public void setTradingFee(double tradingFee) {
-		this.tradingFee = tradingFee;
 	}
 
 	/**
@@ -184,18 +192,16 @@ public abstract class AbstractArbitrageExchange {
 		return tradeService.placeLimitOrder(limitOrder);
 	}
 
-	/**
-	 * Bricht Order ab.
-	 * 
-	 * @param orderID
-	 * @return
-	 * @throws NotAvailableFromExchangeException
-	 * @throws NotYetImplementedForExchangeException
-	 * @throws ExchangeException
-	 * @throws IOException
-	 */
-	public boolean cancelOrder(String orderID) throws NotAvailableFromExchangeException,
-			NotYetImplementedForExchangeException, ExchangeException, IOException {
-		return tradeService.cancelOrder(orderID);
+	public void setDecimals(int decimals) {
+		this.decimals = decimals;
+	}
+
+	public void setTradingFee(double tradingFee) {
+		this.tradingFee = tradingFee;
+	}
+
+	@Override
+	public String toString() {
+		return exchange.toString();
 	}
 }

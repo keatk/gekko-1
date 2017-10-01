@@ -1,13 +1,11 @@
 package de.gekko.exchanges;
 
-import org.knowm.xchange.currency.CurrencyPair;
-
-import de.gekko.enums.ExchangeType;
+import org.knowm.xchange.bittrex.v1.BittrexExchange;
 
 public class BittrexArbitrageExchange extends AbstractArbitrageExchange {
-	
-	public BittrexArbitrageExchange(ExchangeType type, String apiKey, String secretKey, CurrencyPair currencyPair) {
-		super(type, apiKey, secretKey, currencyPair);
+
+	public BittrexArbitrageExchange(String apiKey, String secretKey) {
+		super(BittrexExchange.class, apiKey, secretKey);
 	}
 
 }
