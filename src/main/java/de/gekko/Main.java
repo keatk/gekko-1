@@ -29,7 +29,7 @@ public class Main {
 		while (true) {
 
 			try {
-				arb1.updateMarketData();
+				arb1.updateOrderbooks();
 				arb1.arbTest1();
 				arb1.arbTest2();
 

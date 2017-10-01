@@ -38,28 +38,43 @@ public class Arbitrager {
 	 * Speichert den Logger.
 	 */
 	private static final Logger LOGGER = LoggerFactory.getLogger("Arbitrager");
+	
+	/**
+	 * Speichert den Executor Service für Netzwerkanfragen auf die Exchanges.
+	 */
+	private ExecutorService networkExecutorService = Executors.newFixedThreadPool(2);
+	
+	/**
+	 * Speichert Schwellenwert für Arbitrage TODO: weg vom hardcoding
+	 */
 	private static final double arbitrageMargin = 0.45;
+	
 	/**
 	 * Speichert das maximale Tradelimit in ETH. Menge an Coints, die maximial benutzt werden dürfen.
 	 */
 	private static final double maxTradeLimit = 0.03;
+	
 	/**
 	 * Speichert das minimale Tradelimit in ETH. Menge an Coints, die minimal benutzt werden müssen.
 	 */
 	private static final double minTradeLimit = 0.01;
+	
 	/**
 	 * Falls Trades durchgeführt werden, wird auf true gesetzt. Bevor ein neuer Trade gemacht wird, müssen balances gechecks werden.
 	 */
 	private boolean balanceChanged = false;
+	
 	/**
 	 * Speichert das CurrencyPair, das getraded wird.
 	 */
 	private CurrencyPair currencyPair;
+	
 	/**
 	 * Speichert die DEBUG-Flag. Bei True erfolgen keine echten Transaktionen, dafür
 	 * Output in der Konsole.
 	 */
-	private final boolean DEBUG = true;
+	private boolean DEBUG = true;
+	
 	/**
 	 * Speichert den ersten Exchange.
 	 */
@@ -67,6 +82,7 @@ public class Arbitrager {
 	private double exchange1Base;
 	private double exchange1Counter;
 	private OrderBook exchange1Orderbook;
+	
 	/**
 	 * Speichert den zweiten Exchange.
 	 */
@@ -74,16 +90,19 @@ public class Arbitrager {
 	private double exchange2Base;
 	private double exchange2Counter;
 	private OrderBook exchange2Orderbook;
+	
 	/**
-	 * Speichert den Network Executor Service.
+	 * Startup variable um programmstart zu erkennen
 	 */
-	ExecutorService networkExecutorService = Executors.newFixedThreadPool(2);
 	private boolean startup = true;
+	
 	/**
-	 * Menge der Coins auf den Exchanges. (?)
+	 * Menge der Coins auf den Exchanges zum Start des Programms.
+	 * Wird zur Berechnung des Gewinns einer Session gebraucht
 	 */
 	private double startUpBase = -1;
 	private double startUpCounter = -1;
+	
 	/**
 	 * Summe der Coins auf beiden Exchanges.
 	 */
@@ -99,332 +118,149 @@ public class Arbitrager {
 		updateBalances();
 		// TODO: sanity checks for currency mismatch
 	}
-
-	public void arbitrageEthLtc1() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
-			ExchangeException, IOException, InterruptedException {
-		LOGGER.trace("arbitrageETHLTC1()");
-		if (balanceChanged) {
-			Thread.sleep(1000);
-			updateBalances();
-		}
-
-		double btceAsk = 0;
-		double btceAmount = 0;
-		for (LimitOrder limitOrder : exchange1Orderbook.getAsks()) {
-			// if (limitOrder.getTradableAmount().doubleValue() > btceEthWithdrawFee) {
-			btceAsk = limitOrder.getLimitPrice().doubleValue();
-			btceAmount = limitOrder.getTradableAmount().doubleValue();
-			break;
-			// }
-		}
-
-		double bittrexAmount = 0;
-		double bittrexBid = 0;
-		for (LimitOrder limitOrder : exchange2Orderbook.getAsks()) {
-			// if (limitOrder.getTradableAmount().doubleValue() > bittrexLtcWithdrawFee) {
-			bittrexBid = limitOrder.getLimitPrice().doubleValue();
-			bittrexAmount = limitOrder.getTradableAmount().doubleValue();
-			break;
-			// }
-		}
-
-		double arbitragePercentage = getArbitragePercentage(btceAsk, (1.0 / bittrexBid));
-		if (arbitragePercentage > arbitrageMargin) { // (btceFee + bittrexFee)
-
-			// Tradelimit ausloten BTC-E (ETH)
-			double tradeAmountETH = 0; // <- müsste bittrexAmount sein? copy/paste-fehler
-			if (btceAmount > maxTradeLimit) {
-				tradeAmountETH = maxTradeLimit;
-			} else {
-				tradeAmountETH = btceAmount;
-			}
-
-			// Tradelimit ausloten Bittrex (LTC)
-			double tradeAmountLTC = (tradeAmountETH * btceAsk);
-			if (bittrexAmount < tradeAmountLTC) { // <--- müsste btceAmount sein? Copy/paste-fehler
-				tradeAmountLTC = bittrexAmount;
-				tradeAmountETH = tradeAmountLTC / btceAsk;
-			}
-
-			double bittrexFeeAbsolute = tradeAmountLTC * bittrexBid * 0.0025;
-			double btceFeeAbsolute = tradeAmountETH * 0.002;
-			double profit = tradeAmountETH - btceFeeAbsolute - ((tradeAmountLTC * bittrexBid) + bittrexFeeAbsolute);
-			if (profit > 0) {
-				if (tradeAmountLTC > exchange1Counter) {
-					System.err.println("Insufficient funds LTC -> BTCE | Arbitrage = " + arbitragePercentage);
-					return;
-				}
-				if (((tradeAmountLTC * bittrexBid) + bittrexFeeAbsolute) > exchange2Base) {
-					System.err.println("Insufficient funds ETH -> Bittrex | Arbitrage = " + arbitragePercentage);
-					return;
-				}
-				if (tradeAmountETH < 0.01) {
-					System.err.println("Trade Amount < 0.01");
-					return;
-				}
-
-				// Perform Trades - Multi-threaded Implementation
-				Callable<String> callable_btceTrade = () -> {
-					String exchange1TradeBid = exchange1.builtTradeBid(btceAsk, tradeAmountETH);
-					return exchange1TradeBid;
-				};
-			
-				Callable<String> callable_bittrexTrade = () -> {
-					String exchange2TradeBid = exchange2.builtTradeBid(bittrexBid, tradeAmountLTC);
-					return exchange2TradeBid;
-				};
-
-				Future<String> future_btceTrade = networkExecutorService.submit(callable_btceTrade);
-				Future<String> future_bittrexTrade = networkExecutorService.submit(callable_bittrexTrade);
-
-				LOGGER.trace("====================ARBIT1====================");
-				LOGGER.trace("[ASK: {}] Best profitable ask: {} Amount: {}", exchange1.getName(), btceAsk, btceAmount);
-				LOGGER.trace("[BID: {}] Best profitable bid: {} [{}] Amount: {}", exchange2.getName(),
-						(1.0 / bittrexBid), bittrexBid, bittrexAmount);
-				LOGGER.trace("Arbitrage = {}", arbitragePercentage);
-				LOGGER.trace("[{}] BUY Amount[ETH]: {}, SELL Amount[LTC]: {}", exchange1.getName(), tradeAmountETH,
-						tradeAmountLTC);
-				LOGGER.trace("[{}] SELL Amount[ETH]: {}, BUY Amount[LTC]: {}", exchange2.getName(),
-						((tradeAmountLTC * bittrexBid) + bittrexFeeAbsolute), tradeAmountLTC);
-				LOGGER.trace("Profit: {} ETH", String.format("%.8f", profit));
-
-				try {
-					String uuid = future_bittrexTrade.get();
-					System.out.println("Order1 Placed:" + uuid);
-					String uuid1 = future_btceTrade.get();
-					System.out.println("Order2 Placed:" + uuid1);
-
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (ExecutionException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-
-				balanceChanged = true;
-
-			} else {
-				System.err.println("Arbitrage = " + arbitragePercentage);
-			}
-		}
+	
+	/**
+	 * Führt Arbitrage in beide Richtungen aus.
+	 * @throws NotAvailableFromExchangeException
+	 * @throws NotYetImplementedForExchangeException
+	 * @throws ExchangeException
+	 * @throws IOException
+	 */
+	public void LimitOrderArbitrage() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{
+		updateOrderbooks();
+		oneWay_limitOrderArbitrage(currencyPair.base, exchange1, currencyPair.counter, exchange2);
+		oneWay_limitOrderArbitrage(currencyPair.base, exchange2, currencyPair.counter, exchange1);
 	}
-
-	public void arbitrageEthLtc2() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
-			ExchangeException, IOException, InterruptedException {
-		if (balanceChanged) {
-			Thread.sleep(1000);
-			updateBalances();
-		}
-
-		double btceBid = 0;
-		double btceAmount = 0;
-		for (LimitOrder limitOrder : exchange1Orderbook.getBids()) {
-			if (limitOrder.getTradableAmount().doubleValue() > btceEthWithdrawFee) {
-				btceBid = limitOrder.getLimitPrice().doubleValue();
-				btceAmount = limitOrder.getTradableAmount().doubleValue();
-				break;
-			}
-		}
-
-		double bittrexAmount = 0;
-		double bittrexAsk = 0;
-		for (LimitOrder limitOrder : exchange2Orderbook.getBids()) {
-			if (limitOrder.getTradableAmount().doubleValue() > bittrexLtcWithdrawFee) {
-				bittrexAsk = limitOrder.getLimitPrice().doubleValue();
-				bittrexAmount = limitOrder.getTradableAmount().doubleValue();
-				break;
-			}
-		}
-
-		double arbitragePercentage = getArbitragePercentage((1.0 / bittrexAsk), btceBid);
-		if (arbitragePercentage > arbitrageMargin) { // (btceFee + bittrexFee)
-
-			// Tradelimit ausloten BTC-E (ETH)
-			double tradeAmountETH = 0;
-			if (btceAmount > maxTradeLimit) {
-				tradeAmountETH = maxTradeLimit;
-			} else {
-				tradeAmountETH = btceAmount;
-			}
-
-			// Tradelimit ausloten Bittrex (LTC)
-			double tradeAmountLTC = (tradeAmountETH * btceBid);
-			if (bittrexAmount < tradeAmountLTC) {
-				tradeAmountLTC = bittrexAmount;
-				tradeAmountETH = tradeAmountLTC / btceBid;
-			}
-
-			//
-			double bittrexDiscountETH = tradeAmountLTC * bittrexAsk;
-
-			// Profit abzüglich trading und transaktionsgebühren
-			// double profit = ((tradeAmountLTC*(1-bittrexFee) -
-			// bittrexLtcWithdrawFee)*bittrexAsk) - (tradeAmountETH*(1-btceFee) -
-			// btceEthWithdrawFee);
-			// double profit = (tradeAmountETH*(1-btceFee)) -
-			// ((tradeAmountLTC*(1-bittrexFee))*bittrexAsk);
-
-			double btceFeeAbsolute = (tradeAmountLTC * 0.002);
-			tradeAmountLTC = (tradeAmountLTC - btceFeeAbsolute);
-			double bittrexFeeAbsolute = tradeAmountLTC * bittrexAsk * 0.0025;
-			double profit = ((tradeAmountLTC * bittrexAsk) - tradeAmountETH) - bittrexFeeAbsolute; // bittrexFeeAbsolute;
-			if (profit > 0) {
-				if (tradeAmountETH > exchange1Base) {
-					System.err.println("Insufficient funds ETH -> BTCE | Arbitrage = " + arbitragePercentage);
-					return;
-				}
-				if (tradeAmountLTC > exchange2Counter) {
-					System.err.println("Insufficient funds LTC -> Bittrex | Arbitrage = " + arbitragePercentage);
-					return;
-				}
-				if (tradeAmountETH < 0.01) {
-					System.err.println("Trade Amount < 0.01 | Arbitrage = " + arbitragePercentage);
-					return;
-				}
-				System.out.println("====================ARBIT2====================");
-				System.out.println("[bittrexAsk] Best profitable ask: " + (1.0 / bittrexAsk) + "[" + bittrexAsk + "]"
-						+ " Amount: " + bittrexAmount);
-				System.out.println("[btceBid] Best profitable bid: " + btceBid + " Amount: " + btceAmount);
-				System.out.println("Arbitrage = " + arbitragePercentage);
-				System.out
-						.println("BTC-e - SELL Amount[ETH]: " + tradeAmountETH + " BUY Amount[LTC]: " + tradeAmountLTC);
-				System.out.println("Bittrex - BUY Amount[ETH]: " + String.format("%.8f", (tradeAmountLTC * bittrexAsk))
-						+ " SELL Amount[LTC]: " + tradeAmountLTC);
-				System.out.println("Profit: " + String.format("%.8f", profit) + " ETH");
-
-				BigDecimal bittrexTradeAsk = BigDecimal.valueOf(bittrexAsk).setScale(8, BigDecimal.ROUND_HALF_UP);
-				BigDecimal bittrexTradeAmount = BigDecimal.valueOf(tradeAmountLTC).setScale(8,
-						BigDecimal.ROUND_HALF_UP);
-
-				BigDecimal btceTradeAsk = BigDecimal.valueOf(btceBid).setScale(5, BigDecimal.ROUND_HALF_UP);
-				BigDecimal btceTradeAmount = BigDecimal.valueOf(tradeAmountETH).setScale(5, BigDecimal.ROUND_HALF_UP);
-				String uuid = "";
-				String uuid1 = "";
-
-				// Perform Trades - Multi-threaded Implementation
-				Callable<String> callable_btceTrade = () -> {
-					LimitOrder btceLimitOrder = new LimitOrder.Builder(OrderType.ASK, eth_ltc).limitPrice(btceTradeAsk)
-							.tradableAmount(btceTradeAmount).build();
-					return btceTradeService.placeLimitOrder(btceLimitOrder);
-				};
-
-				Callable<String> callable_bittrexTrade = () -> {
-					LimitOrder bittrexLimitOrder = new LimitOrder.Builder(OrderType.ASK, ltc_eth)
-							.limitPrice(bittrexTradeAsk).tradableAmount(bittrexTradeAmount).build();
-					return bittrexTradeService.placeLimitOrder(bittrexLimitOrder);
-				};
-
-				Future<String> future_btceTrade = networkExecutorService.submit(callable_btceTrade);
-				Future<String> future_bittrexTrade = networkExecutorService.submit(callable_bittrexTrade);
-
-				try {
-					uuid = future_bittrexTrade.get();
-					System.out.println("Order1 Placed:" + uuid);
-					uuid1 = future_btceTrade.get();
-					System.out.println("Order2 Placed:" + uuid1);
-
-				}
-				// catch (InterruptedException e) {
-				// // TODO Auto-generated catch block
-				// e.printStackTrace();
-				// } catch (ExecutionException e) {
-				// // TODO Auto-generated catch block
-				// e.printStackTrace();
-				// }
-				catch (Exception exception) {
-					exception.printStackTrace();
-					boolean cancelled = bittrexTradeService.cancelOrder(uuid);
-					boolean cancelled1 = btceTradeService.cancelOrder(uuid1);
-					System.err.println("Trade Amount BTCE = " + btceTradeAmount + "ETH | Bittrex = "
-							+ bittrexTradeAmount + " LTC");
-					System.exit(1);
-				}
-
-				balanceChanged = true;
-			} else {
-				System.err.println("Arbitrage = " + arbitragePercentage);
-			}
-		}
-	}
-
-	public void arbTest1() {
+	
+	/**
+	 * Arbitrage mit Limit Orders für eine Richtung.
+	 * @param currency1
+	 * @param arbitrageExchange1
+	 * @param currency2
+	 * @param arbitrageExchange2
+	 * @throws NotAvailableFromExchangeException
+	 * @throws NotYetImplementedForExchangeException
+	 * @throws ExchangeException
+	 * @throws IOException
+	 */
+	public void oneWay_limitOrderArbitrage(Currency currency1, AbstractArbitrageExchange arbitrageExchange1, Currency currency2, AbstractArbitrageExchange arbitrageExchange2) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{
+		
+		// Den besten Ask auf Exchange 1 abrufen
 		double exchange1Ask = 0;
 		double exchange1Amount = 0;
 		for (LimitOrder limitOrder : exchange1Orderbook.getAsks()) {
-			// if (limitOrder.getTradableAmount().doubleValue() > btceEthWithdrawFee) {
 			exchange1Ask = limitOrder.getLimitPrice().doubleValue();
 			exchange1Amount = limitOrder.getTradableAmount().doubleValue();
 			break;
-			// }
 		}
-
+		
+		// Den besten Bid auf Exchange 1 abrufen
 		double exchange2Bid = 0;
 		double exchange2Amount = 0;
 		for (LimitOrder limitOrder : exchange2Orderbook.getBids()) {
-			// if (limitOrder.getTradableAmount().doubleValue() > bittrexLtcWithdrawFee) {
 			exchange2Bid = limitOrder.getLimitPrice().doubleValue();
 			exchange2Amount = limitOrder.getTradableAmount().doubleValue();
 			break;
-			// }
 		}
-
+		
+		// Arbitrage berechnen
 		double arbitragePercentage = getArbitragePercentage(exchange1Ask, exchange2Bid);
 		if (arbitragePercentage > 0) {
-			System.out.println("Arb1: " + String.format("%.8f", arbitragePercentage));
+			System.out.println("Arbitrage: " + String.format("%.8f", arbitragePercentage));
 		}
+		
+		// Falls Arbitrage-Schwellenwert erreicht dann trade
+		if (arbitragePercentage > arbitrageMargin) {
+			
+			//TODO Tradeamount ausloten implementieren. Falls maximaler Amount nicht geht muss geschaut werden was das Maximale ist, was die Bid und Ask Amounts zulassen. Achtung: erfordert teilweise umrechnung zwischen Coins.
+//			double tradeAmount = 0;
+//			if (btceAmount > maxTradeLimit) {
+//				tradeAmountETH = maxTradeLimit;
+//			} else {
+//				tradeAmountETH = btceAmount;
+//			}
+			final double tradeAmount = maxTradeLimit;
+			
+			if(DEBUG == false){
+				//TODO: Ausgabe/Logging der trades implementieren
+				
+				// Konstanten für Zugriff aus anonymer Klasse bzw. Lambda
+				final double exchange1Price = exchange1Ask; 
+				final double exchange2Price = exchange2Bid; 
+				
+				// Perform Trades - Multi-threaded Implementation
+				
+				//TODO: genaue Tradeamounts richtig berechnen, bisher nur Platzhalter. Dazu gehört umrechnung der Währungen und Berücksichtigung der Fees. (Achtung Brainfuck :D)
+				//TODO: Ziel sollte am Ende sein dass sich die Kontostände nur in richtung der Arbitrage verändern, also ein plus auf einer Währungsseite rauskommt.
+				Callable<String> callable_exchange1Trade = () -> {
+					return arbitrageExchange1.placeLimitOrderBid(currencyPair, exchange1Price, tradeAmount); //TODO hier Amounts anpassen, zwischen Coins umrechnen und Fees berücksichtigen.
+				};
+				
+				Callable<String> callable_exchange2Trade = () -> {
+					return  arbitrageExchange2.placeLimitOrderBid(currencyPair, exchange2Price, tradeAmount); //TODO hier Amounts anpassen, zwischen Coins umrechnen und Fees berücksichtigen.
+				};
+				
+				Future<String> future_exchange1Order = networkExecutorService.submit(callable_exchange1Trade);
+				Future<String> future_exchange2Order = networkExecutorService.submit(callable_exchange2Trade);
+				
+				String orderID_exchange1 = "";
+				String orderID_exchange2 = "";
+				try {
+					orderID_exchange1 = future_exchange1Order.get();
+					System.out.println("Order1 Placed. ID: " + orderID_exchange1);
+					orderID_exchange2 = future_exchange2Order.get();
+					System.out.println("Order2 Placed. ID: " + orderID_exchange2);
+					
+				} 
+				// Falls irgendetwas schief geht, Trades wenn möglich abbrechen. Beendet Programm weil dieser Fehler nicht auftreten sollte.
+				catch(Exception e) { //TODO: exceptions genauer definieren, z.B. unterscheidung zwischen Netzwerkfehlern (nicht fatal) und zu wenig Funds (fatal, weil das vorher sichergestellt werden sollte)
+					e.printStackTrace();
+					boolean exchange1_cancelled = exchange1.cancelOrder(orderID_exchange1);
+					boolean exchange2_cancelled = exchange2.cancelOrder(orderID_exchange1);
+					System.err.println("Fatal trade error, terminating application.");
+					System.exit(1);
+				}
+				
+				// Nach Tradeaktivität ändert sich Kontostand, deswegen true.
+				balanceChanged = true;
+			}
+			
+		}
+		
 	}
 
-	public void arbTest2() {
-		double exchange1Ask = 0;
-		double exchange1Amount = 0;
-		for (LimitOrder limitOrder : exchange1Orderbook.getBids()) {
-			// if (limitOrder.getTradableAmount().doubleValue() > btceEthWithdrawFee) {
-			exchange1Ask = limitOrder.getLimitPrice().doubleValue();
-			exchange1Amount = limitOrder.getTradableAmount().doubleValue();
-			break;
-			// }
-		}
-
-		double exchange2Bid = 0;
-		double exchange2Amount = 0;
-		for (LimitOrder limitOrder : exchange2Orderbook.getAsks()) {
-			// if (limitOrder.getTradableAmount().doubleValue() > bittrexLtcWithdrawFee) {
-			exchange2Bid = limitOrder.getLimitPrice().doubleValue();
-			exchange2Amount = limitOrder.getTradableAmount().doubleValue();
-			break;
-			// }
-		}
-
-		double arbitragePercentage = getArbitragePercentage(exchange2Bid, exchange1Ask);
-		if (arbitragePercentage > 0) {
-			System.out.println("Arb2: " + String.format("%.8f", arbitragePercentage));
-		}
-	}
-
-	// Calcultate Arbitrage
+	/**
+	 * Berechnet prozentuale Arbitrage.
+	 * @param ask
+	 * @param bid
+	 * @return
+	 */
 	private double getArbitragePercentage(double ask, double bid) {
 		return (1 - ask / bid) * 100;
 	}
 
+	/**
+	 * Kontostände aktualisieren.
+	 * @throws NotAvailableFromExchangeException
+	 * @throws NotYetImplementedForExchangeException
+	 * @throws ExchangeException
+	 * @throws IOException
+	 */
 	public void updateBalances() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
 			ExchangeException, IOException {
 		LOGGER.trace("updateBalances()");
-		// Update Balances on Exchanges
-		// TODO: multithreaded balance check
-		exchange1.checkBalances();
-		exchange2.checkBalances();
-
-		// Get Amounts
-		LOGGER.trace("Get Amounts");
-		double exchange1BaseUpdated = exchange1.getBaseAmount();
-		double exchange1CounterUpdated = exchange1.getCounterAmount();
-		double exchange2BaseUpdated = exchange2.getBaseAmount();
-		double exchange2CounterUpdated = exchange2.getCounterAmount();
+		
+		
+		// Kontostände abrufen
+		double exchange1BaseUpdated = exchange1.checkBalance(currencyPair.base);
+		double exchange1CounterUpdated = exchange1.checkBalance(currencyPair.counter);
+		double exchange2BaseUpdated = exchange2.checkBalance(currencyPair.base);
+		double exchange2CounterUpdated = exchange2.checkBalance(currencyPair.counter);
 
 		double totalBase = exchange1Base + exchange2Base;
 		double totalCounter = exchange1Counter + exchange2Counter;
 
+		//Logging bzw. Printing der Veränderungen und aktuellen Kontostände.
 		LOGGER.trace("{}: {} = {} | {} = {}", exchange1.getName(), currencyPair.base,
 				String.format("%.8f", exchange1BaseUpdated), currencyPair.counter,
 				String.format("%.8f", exchange1CounterUpdated));
@@ -446,36 +282,44 @@ public class Arbitrager {
 					String.format("%.8f", ((totalCounter - startUpCounter))));
 		}
 
-		// Update Class Variables
+		// Klassenvariablen des Arbitragers updaten.
 		this.exchange1Base = exchange1BaseUpdated;
 		this.exchange1Counter = exchange1CounterUpdated;
 		this.exchange2Base = exchange2BaseUpdated;
 		this.exchange2Counter = exchange2CounterUpdated;
 		this.totalBase = totalBase;
 		this.totalCounter = totalCounter;
+		// Kontostände wieder aktuell, deswegen false.
 		balanceChanged = false;
 	}
 
-	public void updateMarketData() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
+	/**
+	 * Aktualisiert Orderbooks.
+	 * @throws NotAvailableFromExchangeException
+	 * @throws NotYetImplementedForExchangeException
+	 * @throws ExchangeException
+	 * @throws IOException
+	 */
+	public void updateOrderbooks() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
 			ExchangeException, IOException {
 
 		// Multi-threaded Implementation
-		Callable<OrderBook> callable_btcMarketsOrderBookEthBtc = () -> {
-			return exchange1.getOrderbook();
+		Callable<OrderBook> callable_exchange1Orderbook = () -> {
+			return exchange1.getOrderbook(currencyPair);
 		};
 
-		Callable<OrderBook> callable_bittrexOrderBookBtcEth = () -> {
-			return exchange2.getOrderbook();
+		Callable<OrderBook> callable_exchange2Orderbook = () -> {
+			return exchange2.getOrderbook(currencyPair);
 		};
 
-		Future<OrderBook> future_btceOrderBookEthLtc = networkExecutorService
-				.submit(callable_btcMarketsOrderBookEthBtc);
-		Future<OrderBook> future_bittrexOrderBookLtcEth = networkExecutorService
-				.submit(callable_bittrexOrderBookBtcEth);
+		Future<OrderBook> future_exchange1Orderbook = networkExecutorService
+				.submit(callable_exchange1Orderbook);
+		Future<OrderBook> future_exchange2Orderbook = networkExecutorService
+				.submit(callable_exchange2Orderbook);
 
 		try {
-			exchange1Orderbook = future_btceOrderBookEthLtc.get();
-			exchange2Orderbook = future_bittrexOrderBookLtcEth.get();
+			exchange1Orderbook = future_exchange1Orderbook.get();
+			exchange2Orderbook = future_exchange2Orderbook.get();
 
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
@@ -485,34 +329,5 @@ public class Arbitrager {
 			e.printStackTrace();
 		}
 	}
-
-	// public void tradeTest() throws NotAvailableFromExchangeException,
-	// NotYetImplementedForExchangeException, ExchangeException, IOException,
-	// InterruptedException{
-	// LimitOrder limitOrder = new LimitOrder.Builder(OrderType.BID,
-	// ltc_eth).limitPrice(new BigDecimal("0.0001")).tradableAmount(new
-	// BigDecimal("6")).build();
-	// String uuid = bittrexTradeService.placeLimitOrder(limitOrder);
-	// System.out.println("Order successfully placed. ID=" + uuid);
-	//
-	// Thread.sleep(7000); // wait for order to propagate
-	//
-	// System.out.println();
-	// System.out.println(bittrexTradeService.getOpenOrders());
-	//
-	// System.out.println("Attempting to cancel order " + uuid);
-	// boolean cancelled = bittrexTradeService.cancelOrder(uuid);
-	//
-	// if (cancelled) {
-	// System.out.println("Order successfully canceled.");
-	// } else {
-	// System.out.println("Order not successfully canceled.");
-	// }
-	//
-	// Thread.sleep(7000); // wait for cancellation to propagate
-	//
-	// System.out.println();
-	// System.out.println(bittrexTradeService.getOpenOrders());
-	// }
 
 }
