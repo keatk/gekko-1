@@ -68,7 +68,7 @@ public class Arbitrager {
 	private AbstractArbitrageExchange exchange1;
 	private double exchange1Base;
 	private double exchange1Counter;
-	private OrderBook exchange1Orderbook;
+	private OrderBook orderbookExchange1;
 	
 	/**
 	 * Speichert den zweiten Exchange.
@@ -76,7 +76,7 @@ public class Arbitrager {
 	private AbstractArbitrageExchange exchange2;
 	private double exchange2Base;
 	private double exchange2Counter;
-	private OrderBook exchange2Orderbook;
+	private OrderBook orderbookExchange2;
 	
 	/**
 	 * Startup variable um programmstart zu erkennen
@@ -115,8 +115,8 @@ public class Arbitrager {
 	 */
 	public void LimitOrderArbitrage() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{
 		updateOrderbooks();
-		oneWay_limitOrderArbitrage(currencyPair.base, exchange1, currencyPair.counter, exchange2);
-		oneWay_limitOrderArbitrage(currencyPair.base, exchange2, currencyPair.counter, exchange1);
+		oneWay_limitOrderArbitrage(currencyPair.base, exchange1, orderbookExchange1, currencyPair.counter, exchange2, orderbookExchange2);
+		oneWay_limitOrderArbitrage(currencyPair.base, exchange2, orderbookExchange2, currencyPair.counter, exchange1, orderbookExchange1);
 	}
 	
 	/**
@@ -130,12 +130,12 @@ public class Arbitrager {
 	 * @throws ExchangeException
 	 * @throws IOException
 	 */
-	public void oneWay_limitOrderArbitrage(Currency currency1, AbstractArbitrageExchange arbitrageExchange1, Currency currency2, AbstractArbitrageExchange arbitrageExchange2) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{
+	public void oneWay_limitOrderArbitrage(Currency currency1, AbstractArbitrageExchange arbitrageExchange1, OrderBook orderBook1, Currency currency2, AbstractArbitrageExchange arbitrageExchange2, OrderBook orderBook2) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{
 		
 		// Den besten Ask auf Exchange 1 abrufen
 		double exchange1Ask = 0;
 		double exchange1Amount = 0;
-		for (LimitOrder limitOrder : exchange1Orderbook.getAsks()) {
+		for (LimitOrder limitOrder : orderBook1.getAsks()) {
 			exchange1Ask = limitOrder.getLimitPrice().doubleValue();
 			exchange1Amount = limitOrder.getTradableAmount().doubleValue();
 			break;
@@ -144,7 +144,7 @@ public class Arbitrager {
 		// Den besten Bid auf Exchange 1 abrufen
 		double exchange2Bid = 0;
 		double exchange2Amount = 0;
-		for (LimitOrder limitOrder : exchange2Orderbook.getBids()) {
+		for (LimitOrder limitOrder : orderBook2.getBids()) {
 			exchange2Bid = limitOrder.getLimitPrice().doubleValue();
 			exchange2Amount = limitOrder.getTradableAmount().doubleValue();
 			break;
@@ -305,8 +305,8 @@ public class Arbitrager {
 				.submit(callable_exchange2Orderbook);
 
 		try {
-			exchange1Orderbook = future_exchange1Orderbook.get();
-			exchange2Orderbook = future_exchange2Orderbook.get();
+			orderbookExchange1 = future_exchange1Orderbook.get();
+			orderbookExchange2 = future_exchange2Orderbook.get();
 
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
