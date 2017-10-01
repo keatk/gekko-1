@@ -135,6 +135,7 @@ public class Arbitrager {
 				exchange2Orderbook);
 		oneWay_limitOrderArbitrage(currencyPair.base, exchange2, exchange2Orderbook, currencyPair.counter, exchange1,
 				exchange1Orderbook);
+
 	}
 
 	/**
@@ -149,6 +150,7 @@ public class Arbitrager {
 	 * @throws ExchangeException
 	 * @throws IOException
 	 */
+
 	public void oneWay_limitOrderArbitrage(Currency currency1, AbstractArbitrageExchange arbitrageExchange1,
 			OrderBook orderBook1, Currency currency2, AbstractArbitrageExchange arbitrageExchange2,
 			OrderBook orderBook2) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
@@ -337,6 +339,7 @@ public class Arbitrager {
 			exchange2Orderbook = future_exchange2Orderbook.get();
 			LOGGER.info("[{}] Orderbook: ask = {}", exchange2, exchange2Orderbook.getAsks().get(0));
 			LOGGER.info("[{}] Orderbook: bid = {}", exchange2, exchange2Orderbook.getBids().get(0));
+
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
