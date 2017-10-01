@@ -86,6 +86,12 @@ public abstract class AbstractArbitrageExchange {
 	public double getTradingFee() {
 		return tradingFee;
 	}
+	
+	protected void initServices(){
+		marketDataService = exchange.getMarketDataService();
+		tradeService = exchange.getTradeService();
+		accountService = exchange.getAccountService();
+	}
 
 	/**
 	 * Führt Limitorder als Ask aus.
