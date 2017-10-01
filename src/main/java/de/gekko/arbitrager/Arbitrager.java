@@ -22,7 +22,7 @@ import de.gekko.exchanges.AbstractArbitrageExchange;
 public class Arbitrager {
 
 	/**
-	 * Speichert Schwellenwert für Arbitrage TODO: weg vom hardcoding
+	 * Speichert Schwellenwert für Arbitrage TODO: weg vom hardcoding (könnte man so lösen, dass Trades durchgeführt werden, sobald die profitabilität positiv
 	 */
 	private static final double arbitrageMargin = 0.45;
 
@@ -33,7 +33,7 @@ public class Arbitrager {
 
 	/**
 	 * Speichert das maximale Tradelimit in ETH. Menge an Coints, die maximial
-	 * benutzt werden dürfen.
+	 * benutzt werden dürfen. TODO: Werte der Exchange CurrencyPairMetaData verwenden.
 	 */
 	private static final double maxTradeLimit = 0.03;
 
@@ -110,14 +110,19 @@ public class Arbitrager {
 	}
 
 	/**
-	 * Berechnet prozentuale Arbitrage.
+	 * Berechnet prozentuale Arbitrage. Dabei werden die Fees der Exchanges
+	 * berücksichtigt. Theoretisch ist ein Arbitrage profitabel, sobald diese
+	 * Funktion > 0 zurück gibt.
 	 * 
-	 * @param ask
-	 * @param bid
-	 * @return
+	 * @param priceAsk
+	 * @param priceBid
+	 * @return die Arbitrage unter Berücksichtigung der Fees.
 	 */
-	private double getArbitragePercentage(double ask, double bid) {
-		return (1 - ask / bid) * 100;
+	private double getArbitragePercentage(double priceAsk, double priceBid) {
+		double grossMargin = 1 - priceAsk / priceBid;
+		double tradingFeeExchange1 = exchange1.getTradingFee(currencyPair);
+		double tradingFeeExchange2 = exchange2.getTradingFee(currencyPair);
+		return (grossMargin - tradingFeeExchange1 - tradingFeeExchange2) * 100;
 	}
 
 	/**
@@ -155,6 +160,7 @@ public class Arbitrager {
 			OrderBook orderBook1, Currency currency2, AbstractArbitrageExchange arbitrageExchange2,
 			OrderBook orderBook2) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
 			ExchangeException, IOException {
+		LOGGER.info("Checking for Arbitrage opportunity...");
 
 		// Den besten Ask auf Exchange 1 abrufen
 		double exchange1Ask = 0;
@@ -176,10 +182,10 @@ public class Arbitrager {
 
 		// Arbitrage berechnen
 		double arbitragePercentage = getArbitragePercentage(exchange1Ask, exchange2Bid);
-		if (arbitragePercentage > 0) {
-			LOGGER.info("[{} -> {}] Arbitrage: {}, Min: {}", exchange1.toString(), exchange2.toString(),
-					String.format("%.8f", arbitragePercentage), arbitrageMargin);
-		}
+		// if (arbitragePercentage > 0) {
+		LOGGER.info("[{} -> {}] Arbitrage: {}, Min: {}", arbitrageExchange1.toString(), arbitrageExchange2.toString(),
+				String.format("%.8f", arbitragePercentage), arbitrageMargin);
+		// }
 
 		// Falls Arbitrage-Schwellenwert erreicht dann trade
 		if (arbitragePercentage > arbitrageMargin) {
