@@ -87,7 +87,7 @@ public abstract class AbstractArbitrageExchange {
 		return tradingFee;
 	}
 	
-	protected void initServices(){
+	public void initServices(){
 		marketDataService = exchange.getMarketDataService();
 		tradeService = exchange.getTradeService();
 		accountService = exchange.getAccountService();
