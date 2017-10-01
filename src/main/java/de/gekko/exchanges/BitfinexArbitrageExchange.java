@@ -2,6 +2,7 @@ package de.gekko.exchanges;
 
 import java.io.IOException;
 
+import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.exceptions.NotAvailableFromExchangeException;
@@ -16,11 +17,9 @@ public class BitfinexArbitrageExchange extends AbstractArbitrageExchange {
 	}
 
 	@Override
-	public void checkBalances() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
+	public double checkBalance(Currency currency) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
 			ExchangeException, IOException {
-		baseAmount = accountService.getAccountInfo().getWallet().getBalance(currencyPair.base).getTotal().doubleValue();
-		counterAmount = accountService.getAccountInfo().getWallet().getBalance(currencyPair.counter).getTotal()
-				.doubleValue();
+		return  accountService.getAccountInfo().getWallet().getBalance(currency).getTotal().doubleValue();
 	}
 
 }
