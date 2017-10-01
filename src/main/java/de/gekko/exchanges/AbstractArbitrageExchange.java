@@ -31,7 +31,7 @@ public abstract class AbstractArbitrageExchange {
 	 * Speichert den AccountService. (?)
 	 */
 	protected AccountService accountService;
-	
+
 	/**
 	 * Speichert den ApiKey des Exchanges, wird aus Configfile gelesen.
 	 */
@@ -41,33 +41,33 @@ public abstract class AbstractArbitrageExchange {
 	 * Speichert die Anzahl Nachkommastellen die bei Trades erlaubt sind.
 	 */
 	private int decimals;
-	
+
 	/**
 	 * Speichert den Exchange.
 	 */
 	private Exchange exchange;
-	
+
 	/**
 	 * Speichert den MarketDataService.
 	 */
 	private MarketDataService marketDataService;
-	
+
 	/**
 	 * Speichert den SecretKey des Exchanges, wird aus dem Configfile gelesen.
 	 */
 	private final String secretKey;
-	
+
 	/**
 	 * Speichert den TradeService.
 	 */
-	
+
 	private TradeService tradeService;
-	
+
 	/**
 	 * Speichert die Tradingfee des Exchanges.
 	 */
 	private double tradingFee;
-	
+
 	/**
 	 * Speichert den Typen. Der Typ bestimmt, welche Unterklasse initialisiert wird.
 	 */
@@ -94,9 +94,9 @@ public abstract class AbstractArbitrageExchange {
 		accountService = exchange.getAccountService();
 	}
 
-	public double checkBalance(Currency currency) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
-			ExchangeException, IOException {
-		
+	public double checkBalance(Currency currency) throws NotAvailableFromExchangeException,
+			NotYetImplementedForExchangeException, ExchangeException, IOException {
+
 		Map<Currency, Balance> balances = accountService.getAccountInfo().getWallet().getBalances();
 		return balances.get(currency).getTotal().doubleValue();
 	}
@@ -113,8 +113,8 @@ public abstract class AbstractArbitrageExchange {
 		return toString();
 	}
 
-	public OrderBook getOrderbook(CurrencyPair currencyPair) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
-			ExchangeException, IOException {
+	public OrderBook getOrderbook(CurrencyPair currencyPair) throws NotAvailableFromExchangeException,
+			NotYetImplementedForExchangeException, ExchangeException, IOException {
 		return marketDataService.getOrderBook(currencyPair);
 	}
 
@@ -140,6 +140,7 @@ public abstract class AbstractArbitrageExchange {
 
 	/**
 	 * Führt Limitorder als Ask aus.
+	 * 
 	 * @param currencyPair
 	 * @param askPriceDouble
 	 * @param askAmountDouble
@@ -149,8 +150,9 @@ public abstract class AbstractArbitrageExchange {
 	 * @throws ExchangeException
 	 * @throws IOException
 	 */
-	public String placeLimitOrderAsk(CurrencyPair currencyPair, double askPriceDouble, double askAmountDouble) throws NotAvailableFromExchangeException,
-			NotYetImplementedForExchangeException, ExchangeException, IOException {
+	public String placeLimitOrderAsk(CurrencyPair currencyPair, double askPriceDouble, double askAmountDouble)
+			throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException,
+			IOException {
 		BigDecimal askPrice = BigDecimal.valueOf(askPriceDouble).setScale(decimals, BigDecimal.ROUND_HALF_UP);
 		BigDecimal askAmount = BigDecimal.valueOf(askAmountDouble).setScale(decimals, BigDecimal.ROUND_HALF_UP);
 
@@ -161,6 +163,7 @@ public abstract class AbstractArbitrageExchange {
 
 	/**
 	 * Führt Limitorder als Bid aus.
+	 * 
 	 * @param currencyPair
 	 * @param bidPrice
 	 * @param bidAmount
@@ -170,8 +173,9 @@ public abstract class AbstractArbitrageExchange {
 	 * @throws ExchangeException
 	 * @throws IOException
 	 */
-	public String placeLimitOrderBid(CurrencyPair currencyPair, double bidPrice, double bidAmount) throws NotAvailableFromExchangeException,
-			NotYetImplementedForExchangeException, ExchangeException, IOException {
+	public String placeLimitOrderBid(CurrencyPair currencyPair, double bidPrice, double bidAmount)
+			throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException,
+			IOException {
 		BigDecimal askPrice = BigDecimal.valueOf(bidPrice).setScale(decimals, BigDecimal.ROUND_HALF_UP);
 		BigDecimal askAmount = BigDecimal.valueOf(bidAmount).setScale(decimals, BigDecimal.ROUND_HALF_UP);
 
@@ -179,9 +183,10 @@ public abstract class AbstractArbitrageExchange {
 				.tradableAmount(askAmount).build();
 		return tradeService.placeLimitOrder(limitOrder);
 	}
-	
+
 	/**
-	 * Bricht Orderm ab.
+	 * Bricht Order ab.
+	 * 
 	 * @param orderID
 	 * @return
 	 * @throws NotAvailableFromExchangeException
@@ -189,7 +194,8 @@ public abstract class AbstractArbitrageExchange {
 	 * @throws ExchangeException
 	 * @throws IOException
 	 */
-	public boolean cancelOrder(String orderID) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException{
+	public boolean cancelOrder(String orderID) throws NotAvailableFromExchangeException,
+			NotYetImplementedForExchangeException, ExchangeException, IOException {
 		return tradeService.cancelOrder(orderID);
 	}
 }

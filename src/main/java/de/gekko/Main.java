@@ -22,7 +22,8 @@ public class Main {
 
 		List<AbstractArbitrageExchange> listExhanges = ResourceManager.loadConfigFile();
 
-		Arbitrager arb1 = new Arbitrager(listExhanges.get(0), listExhanges.get(1), listExhanges.get(0).getCurrenyPair());
+		Arbitrager arb1 = new Arbitrager(listExhanges.get(0), listExhanges.get(1),
+				listExhanges.get(0).getCurrenyPair());
 
 		long startTime = System.nanoTime();
 
