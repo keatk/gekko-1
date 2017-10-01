@@ -30,8 +30,7 @@ public class Main {
 
 			try {
 				arb1.updateOrderbooks();
-				arb1.arbTest1();
-				arb1.arbTest2();
+				arb1.LimitOrderArbitrage();
 
 				Thread.sleep(3000);
 
