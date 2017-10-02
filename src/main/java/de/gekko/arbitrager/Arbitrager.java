@@ -84,7 +84,7 @@ public class Arbitrager {
 	 * @param priceBid
 	 * @return die Arbitrage unter Berücksichtigung der Fees.
 	 */
-	private double getArbitragePercentage(double priceAsk, double priceBid, double tradingFeeExchange1,
+	private double calculateArbitragePercentage(double priceAsk, double priceBid, double tradingFeeExchange1,
 			double tradingFeeExchange2) {
 		double grossMargin = 1 - priceAsk / priceBid;
 		return (grossMargin - tradingFeeExchange1 - tradingFeeExchange2) * 100;
@@ -152,7 +152,7 @@ public class Arbitrager {
 		// Arbitrage berechnen
 		double tradingFeeExchange1 = askExchange.getTradingFee();
 		double tradingFeeExchange2 = bidExchange.getTradingFee();
-		double arbitragePercentage = getArbitragePercentage(priceAskExchange, priceBidExchange, tradingFeeExchange1,
+		double arbitragePercentage = calculateArbitragePercentage(priceAskExchange, priceBidExchange, tradingFeeExchange1,
 				tradingFeeExchange2);
 		LOGGER.info("[{} -> {}] Arbitrage: {}", askExchange.toString(), bidExchange.toString(),
 				String.format("%.8f", arbitragePercentage));
