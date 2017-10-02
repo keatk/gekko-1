@@ -157,13 +157,7 @@ public abstract class AbstractArbitrageExchange {
 
 	public Wallet fetchWallet() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
 			ExchangeException, IOException {
-		Map<String, Wallet> mapWallets = getAccountService().getAccountInfo().getWallets();
-		if (mapWallets.keySet().size() == 1) {
-			// Bisher alle Fälle immer == 1, gebe also erstes Element
-			return mapWallets.values().iterator().next();
-		} else {
-			throw new ExchangeException("More than one Wallet in WalletMap!");
-		}
+		return getAccountService().getAccountInfo().getWallet();
 	}
 
 	protected AccountService getAccountService() {
