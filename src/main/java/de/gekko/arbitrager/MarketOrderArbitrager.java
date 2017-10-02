@@ -185,51 +185,47 @@ public class MarketOrderArbitrager implements Runnable {
 
 	@Override
 	public void run() {
-		int i = 0;
-		for (AbstractArbitrageExchange abstractArbitrageExchange : mapExchanges.values()) {
-			if (updateWallets) {
-				// Wallets aktualisieren
-				updateWallet(abstractArbitrageExchange);
-				updateWallets = false;
-			}
-
-			// Tickets aktualisieren
-			updateTicker(abstractArbitrageExchange);
-
-			// Arbitrage prüfen und ggf. durchführen
-			try {
-				if (i == 0) {
-					performMarketOrderArbitrage(getExchangeOne(), getExchangeTwo());
-				} else {
-					performMarketOrderArbitrage(getExchangeTwo(), getExchangeOne());
-				}
-				i++;
-			} catch (NotAvailableFromExchangeException | NotYetImplementedForExchangeException | ExchangeException
-					| IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+		if (updateWallets) {
+			// Wallets aktualisieren
+			updateWallet(getExchangeOne(), getExchangeTwo());
+			updateWallets = false;
 		}
 
+		updateOrderbook(getExchangeOne(), getExchangeTwo());
+
+		try {
+			performMarketOrderArbitrage(getExchangeOne(), getExchangeTwo());
+			performMarketOrderArbitrage(getExchangeTwo(), getExchangeOne());
+		} catch (NotAvailableFromExchangeException | NotYetImplementedForExchangeException | ExchangeException
+				| IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	/**
 	 * Aktualisiert das OrderBook für einen gegebenen Exchange.
 	 * 
-	 * @param exchange
+	 * @param exchangeOne
 	 */
-	void updateOrderbook(AbstractArbitrageExchange exchange) {
-		LOGGER.info("Updating Orderbooks for {}", exchange.toString());
+	void updateOrderbook(AbstractArbitrageExchange exchangeOne, AbstractArbitrageExchange exchangeTwo) {
+		LOGGER.info("Updating Orderbooks for {} and {}", exchangeOne, exchangeTwo);
 
 		// Multi-threaded Implementation
-		Callable<OrderBook> callableOrderbook = () -> {
-			return exchange.fetchOrderbook(currencyPair);
+		Callable<OrderBook> callableOrderbook1 = () -> {
+			return exchangeOne.fetchOrderbook(currencyPair);
 		};
 
-		Future<OrderBook> futureOrderbook = networkExecutorService.submit(callableOrderbook);
+		Callable<OrderBook> callableOrderbook2 = () -> {
+			return exchangeTwo.fetchOrderbook(currencyPair);
+		};
+
+		Future<OrderBook> futureOrderbook1 = networkExecutorService.submit(callableOrderbook1);
+		Future<OrderBook> futureOrderbook2 = networkExecutorService.submit(callableOrderbook2);
 
 		try {
-			exchange.setOrderBook(futureOrderbook.get());
+			exchangeOne.setOrderBook(futureOrderbook1.get());
+			exchangeTwo.setOrderBook(futureOrderbook2.get());
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -239,20 +235,26 @@ public class MarketOrderArbitrager implements Runnable {
 	/**
 	 * Aktualisiert den Ticker für eine gegebene Exchange.
 	 * 
-	 * @param exchange
+	 * @param exchangeOne
 	 */
-	void updateTicker(AbstractArbitrageExchange exchange) {
-		LOGGER.info("Updating Ticker for {}", exchange.toString());
+	void updateTicker(AbstractArbitrageExchange exchangeOne, AbstractArbitrageExchange exchangeTwo) {
+		LOGGER.info("Updating Ticker for {} and {}", exchangeOne, exchangeTwo);
 
 		// Multi-threaded Implementation
-		Callable<Ticker> callableTicker = () -> {
-			return exchange.fetchTicker(currencyPair);
+		Callable<Ticker> callableTicker1 = () -> {
+			return exchangeOne.fetchTicker(currencyPair);
 		};
 
-		Future<Ticker> futureTicker = networkExecutorService.submit(callableTicker);
+		Callable<Ticker> callableTicker2 = () -> {
+			return exchangeTwo.fetchTicker(currencyPair);
+		};
+
+		Future<Ticker> futureTicker1 = networkExecutorService.submit(callableTicker1);
+		Future<Ticker> futureTicker2 = networkExecutorService.submit(callableTicker2);
 
 		try {
-			exchange.setTicker(futureTicker.get());
+			exchangeOne.setTicker(futureTicker1.get());
+			exchangeTwo.setTicker(futureTicker2.get());
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -262,20 +264,26 @@ public class MarketOrderArbitrager implements Runnable {
 	/**
 	 * Aktualisiert den Wallet für einen gegeben Exchange.
 	 * 
-	 * @param exchange
+	 * @param exchangeOne
 	 */
-	void updateWallet(AbstractArbitrageExchange exchange) {
-		LOGGER.info("Updating Wallet for {}", exchange);
+	void updateWallet(AbstractArbitrageExchange exchangeOne, AbstractArbitrageExchange exchangeTwo) {
+		LOGGER.info("Updating Wallets for {} and {}", exchangeOne, exchangeTwo);
 
 		// Multi-threaded Implementation
-		Callable<Wallet> callableExchange1Wallets = () -> {
-			return exchange.fetchWallet();
+		Callable<Wallet> callableExchange1Wallet = () -> {
+			return exchangeOne.fetchWallet();
 		};
 
-		Future<Wallet> futureExchange1Wallets = networkExecutorService.submit(callableExchange1Wallets);
+		Callable<Wallet> callableExchange2Wallet = () -> {
+			return exchangeTwo.fetchWallet();
+		};
+
+		Future<Wallet> futureExchange1Wallets = networkExecutorService.submit(callableExchange1Wallet);
+		Future<Wallet> futureExchange2Wallets = networkExecutorService.submit(callableExchange2Wallet);
 
 		try {
-			exchange.setWallet(futureExchange1Wallets.get());
+			exchangeOne.setWallet(futureExchange1Wallets.get());
+			exchangeTwo.setWallet(futureExchange2Wallets.get());
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

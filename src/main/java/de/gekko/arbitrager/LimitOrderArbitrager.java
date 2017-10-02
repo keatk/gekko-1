@@ -103,14 +103,12 @@ public class LimitOrderArbitrager {
 	public void limitOrderArbitrage() {
 		if (updateWallets) {
 			// Wallets aktualisieren
-			updateWallet(exchange1);
-			updateWallet(exchange2);
+			updateWallet(exchange1, exchange2);
 			updateWallets = false;
 		}
 
 		// Tickets aktualisieren
-		updateTicker(exchange1);
-		updateTicker(exchange2);
+		updateOrderbook(exchange1, exchange2);
 
 		// Arbitrage prüfen und ggf. durchführen
 		try {
@@ -138,15 +136,15 @@ public class LimitOrderArbitrager {
 	void oneWay_limitOrderArbitrage(AbstractArbitrageExchange askExchange, AbstractArbitrageExchange bidExchange)
 			throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException,
 			IOException {
-		LOGGER.info("Checking for Arbitrage opportunity...");
+		LOGGER.trace("Checking for Arbitrage opportunity...");
 
 		// ASK-Exchange
-		double priceAskExchange = askExchange.getTicker().getAsk().doubleValue();
-		LOGGER.info("[{}, ASK] Price: {}", askExchange, priceAskExchange);
+		double priceAskExchange = askExchange.getOrderbook().getAsks().get(0).getLimitPrice().doubleValue();
+		LOGGER.trace("[{}, ASK] Price: {}", askExchange, priceAskExchange);
 
 		// BID-Exchange
-		double priceBidExchange = bidExchange.getTicker().getBid().doubleValue();
-		LOGGER.info("[{}, BID] Price: {}", bidExchange, priceBidExchange);
+		double priceBidExchange = bidExchange.getOrderbook().getBids().get(0).getLimitPrice().doubleValue();
+		LOGGER.trace("[{}, BID] Price: {}", bidExchange, priceBidExchange);
 
 		// Arbitrage berechnen
 		// getMakerFee gibt TradingFee, falls nicht explizit gesetzt.
@@ -242,20 +240,26 @@ public class LimitOrderArbitrager {
 	/**
 	 * Aktualisiert das OrderBook für einen gegebenen Exchange.
 	 * 
-	 * @param exchange
+	 * @param exchangeOne
 	 */
-	void updateOrderbooks(AbstractArbitrageExchange exchange) {
-		LOGGER.info("Updating Orderbooks for {}", exchange.toString());
+	void updateOrderbook(AbstractArbitrageExchange exchangeOne, AbstractArbitrageExchange exchangeTwo) {
+		LOGGER.trace("Updating Orderbooks for {} and {}", exchangeOne, exchangeTwo);
 
 		// Multi-threaded Implementation
-		Callable<OrderBook> callableOrderbook = () -> {
-			return exchange.fetchOrderbook(currencyPair);
+		Callable<OrderBook> callableOrderbook1 = () -> {
+			return exchangeOne.fetchOrderbook(currencyPair);
 		};
 
-		Future<OrderBook> futureOrderbook = networkExecutorService.submit(callableOrderbook);
+		Callable<OrderBook> callableOrderbook2 = () -> {
+			return exchangeTwo.fetchOrderbook(currencyPair);
+		};
+
+		Future<OrderBook> futureOrderbook1 = networkExecutorService.submit(callableOrderbook1);
+		Future<OrderBook> futureOrderbook2 = networkExecutorService.submit(callableOrderbook2);
 
 		try {
-			exchange.setOrderBook(futureOrderbook.get());
+			exchangeOne.setOrderBook(futureOrderbook1.get());
+			exchangeTwo.setOrderBook(futureOrderbook2.get());
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -265,20 +269,26 @@ public class LimitOrderArbitrager {
 	/**
 	 * Aktualisiert den Ticker für eine gegebene Exchange.
 	 * 
-	 * @param exchange
+	 * @param exchangeOne
 	 */
-	void updateTicker(AbstractArbitrageExchange exchange) {
-		LOGGER.info("Updating Ticker for {}", exchange.toString());
+	void updateTicker(AbstractArbitrageExchange exchangeOne, AbstractArbitrageExchange exchangeTwo) {
+		LOGGER.trace("Updating Ticker for {} and {}", exchangeOne, exchangeTwo);
 
 		// Multi-threaded Implementation
-		Callable<Ticker> callableTicker = () -> {
-			return exchange.fetchTicker(currencyPair);
+		Callable<Ticker> callableTicker1 = () -> {
+			return exchangeOne.fetchTicker(currencyPair);
 		};
 
-		Future<Ticker> futureTicker = networkExecutorService.submit(callableTicker);
+		Callable<Ticker> callableTicker2 = () -> {
+			return exchangeTwo.fetchTicker(currencyPair);
+		};
+
+		Future<Ticker> futureTicker1 = networkExecutorService.submit(callableTicker1);
+		Future<Ticker> futureTicker2 = networkExecutorService.submit(callableTicker2);
 
 		try {
-			exchange.setTicker(futureTicker.get());
+			exchangeOne.setTicker(futureTicker1.get());
+			exchangeTwo.setTicker(futureTicker2.get());
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -288,20 +298,26 @@ public class LimitOrderArbitrager {
 	/**
 	 * Aktualisiert den Wallet für einen gegeben Exchange.
 	 * 
-	 * @param exchange
+	 * @param exchangeOne
 	 */
-	void updateWallet(AbstractArbitrageExchange exchange) {
-		LOGGER.info("Updating Wallet for {}", exchange);
+	void updateWallet(AbstractArbitrageExchange exchangeOne, AbstractArbitrageExchange exchangeTwo) {
+		LOGGER.trace("Updating Wallets for {} and {}", exchangeOne, exchangeTwo);
 
 		// Multi-threaded Implementation
-		Callable<Wallet> callableExchange1Wallets = () -> {
-			return exchange.fetchWallet();
+		Callable<Wallet> callableExchange1Wallet = () -> {
+			return exchangeOne.fetchWallet();
 		};
 
-		Future<Wallet> futureExchange1Wallets = networkExecutorService.submit(callableExchange1Wallets);
+		Callable<Wallet> callableExchange2Wallet = () -> {
+			return exchangeTwo.fetchWallet();
+		};
+
+		Future<Wallet> futureExchange1Wallets = networkExecutorService.submit(callableExchange1Wallet);
+		Future<Wallet> futureExchange2Wallets = networkExecutorService.submit(callableExchange2Wallet);
 
 		try {
-			exchange.setWallet(futureExchange1Wallets.get());
+			exchangeOne.setWallet(futureExchange1Wallets.get());
+			exchangeTwo.setWallet(futureExchange2Wallets.get());
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
