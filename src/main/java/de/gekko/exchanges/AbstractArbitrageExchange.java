@@ -9,6 +9,7 @@ import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order.OrderType;
 import org.knowm.xchange.dto.account.Balance;
+import org.knowm.xchange.dto.account.Wallet;
 import org.knowm.xchange.dto.marketdata.OrderBook;
 import org.knowm.xchange.dto.meta.CurrencyPairMetaData;
 import org.knowm.xchange.dto.trade.LimitOrder;
@@ -28,6 +29,14 @@ public abstract class AbstractArbitrageExchange {
 	 * Speichert den AccountService.
 	 */
 	protected AccountService accountService;
+
+	/**
+	 * Speichert die Map der CurrencyPairs mit ihren Metadaten. Enthält alle
+	 * CurrencyPairs, die auf dem Exhange gehandelt werden. Die Metadaten enthalten
+	 * beispielsweise die TradingFees. Hält ebenso Informationen über
+	 * Min/Max-Amounts der Exchanges.
+	 */
+	protected Map<CurrencyPair, CurrencyPairMetaData> currencyPairs;
 
 	/**
 	 * Speichert die Anzahl Nachkommastellen die bei Trades erlaubt sind.
@@ -50,14 +59,6 @@ public abstract class AbstractArbitrageExchange {
 	protected TradeService tradeService;
 
 	/**
-	 * Speichert die Map der CurrencyPairs mit ihren Metadaten. Enthält alle
-	 * CurrencyPairs, die auf dem Exhange gehandelt werden. Die Metadaten enthalten
-	 * beispielsweise die TradingFees. Hält ebenso Informationen über
-	 * Min/Max-Amounts der Exchanges.
-	 */
-	protected Map<CurrencyPair, CurrencyPairMetaData> currencyPairs;
-
-	/**
 	 * Bricht Order ab.
 	 * 
 	 * @param orderID
@@ -72,7 +73,7 @@ public abstract class AbstractArbitrageExchange {
 		return tradeService.cancelOrder(orderID);
 	}
 
-	public double checkBalance(Currency currency) throws NotAvailableFromExchangeException,
+	public double getBalance(Currency currency) throws NotAvailableFromExchangeException,
 			NotYetImplementedForExchangeException, ExchangeException, IOException {
 		Map<Currency, Balance> balances = accountService.getAccountInfo().getWallet().getBalances();
 		return balances.get(currency).getTotal().doubleValue();
@@ -80,6 +81,38 @@ public abstract class AbstractArbitrageExchange {
 
 	public int getDecimals() {
 		return decimals;
+	}
+
+	/**
+	 * Liefert die minimale Menge, die auf dem Exchange getraded werden muss
+	 * abhängig vom CurrencyPair.
+	 * 
+	 * @param currencyPair
+	 * @return maximum trading amount. Liefert -1, wenn nicht anwendbar.
+	 */
+	public double getMaximumAmount(CurrencyPair currencyPair) {
+		try {
+			return currencyPairs.get(currencyPair).getMaximumAmount().doubleValue();
+		} catch (NullPointerException npe) {
+			// Keine Maximum Amount für Exchange.
+			return -1;
+		}
+	}
+
+	/**
+	 * Liefert die minimale Menge, die auf dem Exchange getraded werden muss
+	 * abhängig vom CurrencyPair.
+	 * 
+	 * @param currencyPair
+	 * @return minimum trading amount. Liefert -1, wenn nicht anwendbar.
+	 */
+	public double getMinimumAmount(CurrencyPair currencyPair) {
+		try {
+			return currencyPairs.get(currencyPair).getMinimumAmount().doubleValue();
+		} catch (NullPointerException npe) {
+			// Keine Minimum Amount für Exchange.
+			return -1;
+		}
 	}
 
 	public OrderBook getOrderbook(CurrencyPair currencyPair) throws NotAvailableFromExchangeException,
@@ -106,35 +139,14 @@ public abstract class AbstractArbitrageExchange {
 		}
 	}
 
-	/**
-	 * Liefert die minimale Menge, die auf dem Exchange getraded werden muss
-	 * abhängig vom CurrencyPair.
-	 * 
-	 * @param currencyPair
-	 * @return minimum trading amount. Liefert -1, wenn nicht anwendbar.
-	 */
-	public double getMinimumAmount(CurrencyPair currencyPair) {
-		try {
-			return currencyPairs.get(currencyPair).getMinimumAmount().doubleValue();
-		} catch (NullPointerException npe) {
-			// Keine Minimum Amount für Exchange.
-			return -1;
-		}
-	}
-
-	/**
-	 * Liefert die minimale Menge, die auf dem Exchange getraded werden muss
-	 * abhängig vom CurrencyPair.
-	 * 
-	 * @param currencyPair
-	 * @return maximum trading amount. Liefert -1, wenn nicht anwendbar.
-	 */
-	public double getMaximumAmount(CurrencyPair currencyPair) {
-		try {
-			return currencyPairs.get(currencyPair).getMaximumAmount().doubleValue();
-		} catch (NullPointerException npe) {
-			// Keine Maximum Amount für Exchange.
-			return -1;
+	public Wallet getWallets() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
+			ExchangeException, IOException {
+		Map<String, Wallet> mapWallets = accountService.getAccountInfo().getWallets();
+		if (mapWallets.keySet().size() == 1) {
+			// Bisher alle Fälle immer == 1, gebe also erstes Element
+			return mapWallets.values().iterator().next();
+		} else {
+			throw new ExchangeException("More than one Wallet in WalletMap!");
 		}
 	}
 
