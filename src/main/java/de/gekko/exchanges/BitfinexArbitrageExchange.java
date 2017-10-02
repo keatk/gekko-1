@@ -15,6 +15,11 @@ public class BitfinexArbitrageExchange extends AbstractArbitrageExchange {
 		initServices();
 	}
 
+	/**
+	 * Hier können fetch-Methoden überschrieben werden, falls ein Exchange anders
+	 * behandelt werden muss.
+	 */
+
 	// @Override
 	// public double getBalance(Currency currency) throws
 	// NotAvailableFromExchangeException,

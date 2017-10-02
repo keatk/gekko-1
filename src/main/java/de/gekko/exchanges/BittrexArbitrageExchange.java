@@ -14,5 +14,10 @@ public class BittrexArbitrageExchange extends AbstractArbitrageExchange {
 
 		initServices();
 	}
+	
+	/**
+	 * Hier können fetch-Methoden überschrieben werden, falls ein Exchange anders
+	 * behandelt werden muss.
+	 */
 
 }
