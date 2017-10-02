@@ -9,7 +9,9 @@ import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order.OrderType;
 import org.knowm.xchange.dto.account.Balance;
+import org.knowm.xchange.dto.account.Wallet;
 import org.knowm.xchange.dto.marketdata.OrderBook;
+import org.knowm.xchange.dto.meta.CurrencyPairMetaData;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.exceptions.NotAvailableFromExchangeException;
@@ -29,6 +31,14 @@ public abstract class AbstractArbitrageExchange {
 	protected AccountService accountService;
 
 	/**
+	 * Speichert die Map der CurrencyPairs mit ihren Metadaten. Enthält alle
+	 * CurrencyPairs, die auf dem Exhange gehandelt werden. Die Metadaten enthalten
+	 * beispielsweise die TradingFees. Hält ebenso Informationen über
+	 * Min/Max-Amounts der Exchanges.
+	 */
+	protected Map<CurrencyPair, CurrencyPairMetaData> currencyPairs;
+
+	/**
 	 * Speichert die Anzahl Nachkommastellen die bei Trades erlaubt sind.
 	 */
 	private int decimals;
@@ -42,16 +52,11 @@ public abstract class AbstractArbitrageExchange {
 	 * Speichert den MarketDataService.
 	 */
 	protected MarketDataService marketDataService;
-	
+
 	/**
 	 * Speichert den TradeService.
 	 */
 	protected TradeService tradeService;
-
-	/**
-	 * Speichert die Tradingfee des Exchanges.
-	 */
-	private double tradingFee;
 
 	/**
 	 * Bricht Order ab.
@@ -68,7 +73,7 @@ public abstract class AbstractArbitrageExchange {
 		return tradeService.cancelOrder(orderID);
 	}
 
-	public double checkBalance(Currency currency) throws NotAvailableFromExchangeException,
+	public double getBalance(Currency currency) throws NotAvailableFromExchangeException,
 			NotYetImplementedForExchangeException, ExchangeException, IOException {
 		Map<Currency, Balance> balances = accountService.getAccountInfo().getWallet().getBalances();
 		return balances.get(currency).getTotal().doubleValue();
@@ -78,19 +83,79 @@ public abstract class AbstractArbitrageExchange {
 		return decimals;
 	}
 
+	/**
+	 * Liefert die minimale Menge, die auf dem Exchange getraded werden muss
+	 * abhängig vom CurrencyPair.
+	 * 
+	 * @param currencyPair
+	 * @return maximum trading amount. Liefert -1, wenn nicht anwendbar.
+	 */
+	public double getMaximumAmount(CurrencyPair currencyPair) {
+		try {
+			return currencyPairs.get(currencyPair).getMaximumAmount().doubleValue();
+		} catch (NullPointerException npe) {
+			// Keine Maximum Amount für Exchange.
+			return -1;
+		}
+	}
+
+	/**
+	 * Liefert die minimale Menge, die auf dem Exchange getraded werden muss
+	 * abhängig vom CurrencyPair.
+	 * 
+	 * @param currencyPair
+	 * @return minimum trading amount. Liefert -1, wenn nicht anwendbar.
+	 */
+	public double getMinimumAmount(CurrencyPair currencyPair) {
+		try {
+			return currencyPairs.get(currencyPair).getMinimumAmount().doubleValue();
+		} catch (NullPointerException npe) {
+			// Keine Minimum Amount für Exchange.
+			return -1;
+		}
+	}
+
 	public OrderBook getOrderbook(CurrencyPair currencyPair) throws NotAvailableFromExchangeException,
 			NotYetImplementedForExchangeException, ExchangeException, IOException {
 		return marketDataService.getOrderBook(currencyPair);
 	}
 
-	public double getTradingFee() {
-		return tradingFee;
+	/**
+	 * Liefert die TradingFees für ein gegebenes CurrencyPair.
+	 * 
+	 * @param currencyPair
+	 * @return die TradingFees für ein gegebenes CurrencyPair.
+	 */
+	public double getTradingFee(CurrencyPair currencyPair) {
+		try {
+			return currencyPairs.get(currencyPair).getTradingFee().doubleValue();
+		} catch (NullPointerException npe) {
+			// Keine Fees für Exchange gefunden.
+			/**
+			 * TODO: Hier einen Fallback einbauen, falls Fees nicht über die API erfragt
+			 * werden können: Fees über einen kleinen Trade errechnen.
+			 */
+			return 0;
+		}
 	}
-	
-	protected void initServices(){
+
+	public Wallet getWallets() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
+			ExchangeException, IOException {
+		Map<String, Wallet> mapWallets = accountService.getAccountInfo().getWallets();
+		if (mapWallets.keySet().size() == 1) {
+			// Bisher alle Fälle immer == 1, gebe also erstes Element
+			return mapWallets.values().iterator().next();
+		} else {
+			throw new ExchangeException("More than one Wallet in WalletMap!");
+		}
+	}
+
+	protected void initServices() {
 		marketDataService = exchange.getMarketDataService();
 		tradeService = exchange.getTradeService();
 		accountService = exchange.getAccountService();
+
+		currencyPairs = exchange.getExchangeMetaData().getCurrencyPairs();
 	}
 
 	/**
@@ -141,10 +206,6 @@ public abstract class AbstractArbitrageExchange {
 
 	public void setDecimals(int decimals) {
 		this.decimals = decimals;
-	}
-
-	public void setTradingFee(double tradingFee) {
-		this.tradingFee = tradingFee;
 	}
 
 	@Override

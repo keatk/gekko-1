@@ -7,10 +7,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.currency.CurrencyPair;
+import org.knowm.xchange.dto.account.Balance;
+import org.knowm.xchange.dto.account.Wallet;
 import org.knowm.xchange.dto.marketdata.OrderBook;
-import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.exceptions.NotAvailableFromExchangeException;
 import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
@@ -22,7 +22,8 @@ import de.gekko.exchanges.AbstractArbitrageExchange;
 public class Arbitrager {
 
 	/**
-	 * Speichert Schwellenwert für Arbitrage TODO: weg vom hardcoding
+	 * Speichert Schwellenwert für Arbitrage TODO: weg vom hardcoding (könnte man so
+	 * lösen, dass Trades durchgeführt werden, sobald die profitabilität positiv
 	 */
 	private static final double arbitrageMargin = 0.45;
 
@@ -33,7 +34,8 @@ public class Arbitrager {
 
 	/**
 	 * Speichert das maximale Tradelimit in ETH. Menge an Coints, die maximial
-	 * benutzt werden dürfen.
+	 * benutzt werden dürfen. TODO: Werte der Exchange CurrencyPairMetaData
+	 * verwenden.
 	 */
 	private static final double maxTradeLimit = 0.03;
 
@@ -44,10 +46,11 @@ public class Arbitrager {
 	private static final double minTradeLimit = 0.01;
 
 	/**
-	 * Falls Trades durchgeführt werden, wird auf true gesetzt. Bevor ein neuer
-	 * Trade gemacht wird, müssen balances gechecks werden.
+	 * Speichert die Flag, die bestimmt ob Wallets aktualisiert werden. Zum
+	 * Programmstart und nachdem erfolgreich Trades durchgeführt, wird die Flag auf
+	 * true gesetzt.
 	 */
-	private boolean balanceChanged = false;
+	private boolean updateWallets = true;
 
 	/**
 	 * Speichert das CurrencyPair, das getraded wird.
@@ -64,27 +67,29 @@ public class Arbitrager {
 	 * Speichert den ersten Exchange.
 	 */
 	private AbstractArbitrageExchange exchange1;
-	private double exchange1Base;
-	private double exchange1Counter;
+	// private double exchange1BaseAmount;
+	// private double exchange1CounterAmount;
 	private OrderBook exchange1Orderbook;
+	private Wallet exchange1Wallet;
 
 	/**
 	 * Speichert den zweiten Exchange.
 	 */
 	private AbstractArbitrageExchange exchange2;
-	private double exchange2Base;
-	private double exchange2Counter;
+	// private double exchange2BaseAmount;
+	// private double exchange2CounterAmount;
 	private OrderBook exchange2Orderbook;
+	private Wallet exchange2Wallet;
 
 	/**
 	 * Speichert den Executor Service für Netzwerkanfragen auf die Exchanges.
 	 */
 	private ExecutorService networkExecutorService = Executors.newFixedThreadPool(2);
 
-	/**
-	 * Startup variable um programmstart zu erkennen
-	 */
-	private boolean startup = true;
+	// /**
+	// * Startup variable um programmstart zu erkennen
+	// */
+	// private boolean startup = true;
 
 	/**
 	 * Menge der Coins auf den Exchanges zum Start des Programms. Wird zur
@@ -105,23 +110,30 @@ public class Arbitrager {
 		this.exchange2 = exchange2;
 		this.currencyPair = currencyPair;
 
-		updateBalances();
+		updateWallet();
 		// TODO: sanity checks for currency mismatch
 	}
 
 	/**
-	 * Berechnet prozentuale Arbitrage.
+	 * Berechnet prozentuale Arbitrage. Dabei werden die Fees der Exchanges
+	 * berücksichtigt. Theoretisch ist ein Arbitrage profitabel, sobald diese
+	 * Funktion > 0 zurück gibt.
 	 * 
-	 * @param ask
-	 * @param bid
-	 * @return
+	 * @param priceAsk
+	 * @param priceBid
+	 * @return die Arbitrage unter Berücksichtigung der Fees.
 	 */
-	private double getArbitragePercentage(double ask, double bid) {
-		return (1 - ask / bid) * 100;
+	private double getArbitragePercentage(double priceAsk, double priceBid) {
+		double grossMargin = 1 - priceAsk / priceBid;
+		double tradingFeeExchange1 = exchange1.getTradingFee(currencyPair);
+		double tradingFeeExchange2 = exchange2.getTradingFee(currencyPair);
+		return (grossMargin - tradingFeeExchange1 - tradingFeeExchange2) * 100;
 	}
 
 	/**
-	 * Führt Arbitrage in beide Richtungen aus.
+	 * Aktualisiert zunächst die OrderBooks der Exchages. Führt Arbitrage in beide
+	 * Richtungen aus. Dazu wird die Profitabilität geprüft und ggf. ein Trade
+	 * durchgeführt.
 	 * 
 	 * @throws NotAvailableFromExchangeException
 	 * @throws NotYetImplementedForExchangeException
@@ -131,58 +143,68 @@ public class Arbitrager {
 	public void limitOrderArbitrage() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
 			ExchangeException, IOException {
 		updateOrderbooks();
-		oneWay_limitOrderArbitrage(currencyPair.base, exchange1, exchange1Orderbook, currencyPair.counter, exchange2,
-				exchange2Orderbook);
-		oneWay_limitOrderArbitrage(currencyPair.base, exchange2, exchange2Orderbook, currencyPair.counter, exchange1,
-				exchange1Orderbook);
-
+		oneWay_limitOrderArbitrage(exchange1, exchange1Orderbook, exchange2, exchange2Orderbook);
+		oneWay_limitOrderArbitrage(exchange2, exchange2Orderbook, exchange1, exchange1Orderbook);
 	}
 
 	/**
 	 * Arbitrage mit Limit Orders für eine Richtung.
 	 * 
-	 * @param currency1
-	 * @param arbitrageExchange1
-	 * @param currency2
-	 * @param arbitrageExchange2
+	 * @param askExchange
+	 * @param askExchangeOrderBook
+	 * @param bidExchange
+	 * @param bidExchangeOrderBook
 	 * @throws NotAvailableFromExchangeException
 	 * @throws NotYetImplementedForExchangeException
 	 * @throws ExchangeException
 	 * @throws IOException
 	 */
 
-	public void oneWay_limitOrderArbitrage(Currency currency1, AbstractArbitrageExchange arbitrageExchange1,
-			OrderBook orderBook1, Currency currency2, AbstractArbitrageExchange arbitrageExchange2,
-			OrderBook orderBook2) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
-			ExchangeException, IOException {
+	public void oneWay_limitOrderArbitrage(AbstractArbitrageExchange askExchange, OrderBook askExchangeOrderBook,
+			AbstractArbitrageExchange bidExchange, OrderBook bidExchangeOrderBook)
+			throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException,
+			IOException {
+		LOGGER.info("Checking for Arbitrage opportunity...");
 
 		// Den besten Ask auf Exchange 1 abrufen
-		double exchange1Ask = 0;
-		double exchange1Amount = 0;
-		for (LimitOrder limitOrder : orderBook1.getAsks()) {
-			exchange1Ask = limitOrder.getLimitPrice().doubleValue();
-			exchange1Amount = limitOrder.getTradableAmount().doubleValue();
-			break;
-		}
+		// double exchange1Ask = 0;
+		// double exchange1Amount = 0;
+		// for (LimitOrder limitOrder : orderBook1.getAsks()) {
+		// exchange1Ask = limitOrder.getLimitPrice().doubleValue();
+		// exchange1Amount = limitOrder.getTradableAmount().doubleValue();
+		// break;
+		// }
+		/**
+		 * Ausdrücke sollte den Block oben ersetzen. Benennung präzisiert.
+		 */
+		double priceAskExchange = askExchangeOrderBook.getAsks().get(0).getLimitPrice().doubleValue();
+		double amountAskExchange = bidExchangeOrderBook.getAsks().get(0).getTradableAmount().doubleValue();
 
-		// Den besten Bid auf Exchange 1 abrufen
-		double exchange2Bid = 0;
-		double exchange2Amount = 0;
-		for (LimitOrder limitOrder : orderBook2.getBids()) {
-			exchange2Bid = limitOrder.getLimitPrice().doubleValue();
-			exchange2Amount = limitOrder.getTradableAmount().doubleValue();
-			break;
-		}
+		// Den besten Bid auf Exchange 2 abrufen
+		// double exchange2Bid = 0;
+		// double exchange2Amount = 0;
+		// for (LimitOrder limitOrder : orderBook2.getBids()) {
+		// exchange2Bid = limitOrder.getLimitPrice().doubleValue();
+		// exchange2Amount = limitOrder.getTradableAmount().doubleValue();
+		// break;
+		// }
+		/**
+		 * Ausdrücke sollte den Block oben ersetzen. Benennung präzisiert.
+		 */
+		double priceBidExchange = askExchangeOrderBook.getBids().get(0).getLimitPrice().doubleValue();
+		double amountBidExchange = bidExchangeOrderBook.getAsks().get(0).getTradableAmount().doubleValue();
 
 		// Arbitrage berechnen
-		double arbitragePercentage = getArbitragePercentage(exchange1Ask, exchange2Bid);
-		if (arbitragePercentage > 0) {
-			LOGGER.info("[{} -> {}] Arbitrage: {}, Min: {}", exchange1.toString(), exchange2.toString(),
-					String.format("%.8f", arbitragePercentage), arbitrageMargin);
-		}
+		double arbitragePercentage = getArbitragePercentage(priceAskExchange, priceBidExchange);
+		// if (arbitragePercentage > 0) {
+		LOGGER.info("[{} -> {}] Arbitrage: {}, Min: {}", askExchange.toString(), bidExchange.toString(),
+				String.format("%.8f", arbitragePercentage), arbitrageMargin);
+		// }
 
 		// Falls Arbitrage-Schwellenwert erreicht dann trade
 		if (arbitragePercentage > arbitrageMargin) {
+			// final double potentialAskAmount =
+			// exchange1Wallet.getBalance(currencyPair.base).getAvailable().doubleValue();
 
 			// TODO Tradeamount ausloten implementieren. Falls maximaler Amount nicht geht
 			// muss geschaut werden was das Maximale ist, was die Bid und Ask Amounts
@@ -199,8 +221,8 @@ public class Arbitrager {
 				// TODO: Ausgabe/Logging der trades implementieren
 
 				// Konstanten für Zugriff aus anonymer Klasse bzw. Lambda
-				final double exchange1Price = exchange1Ask;
-				final double exchange2Price = exchange2Bid;
+				final double exchange1Price = priceAskExchange;
+				final double exchange2Price = priceBidExchange;
 
 				// Perform Trades - Multi-threaded Implementation
 
@@ -212,13 +234,13 @@ public class Arbitrager {
 				// TODO: hier Amounts anpassen, zwischen Coins umrechnen und Fees
 				// berücksichtigen.
 				Callable<String> callable_exchange1Trade = () -> {
-					return arbitrageExchange1.placeLimitOrderBid(currencyPair, exchange1Price, tradeAmount);
+					return askExchange.placeLimitOrderBid(currencyPair, exchange1Price, tradeAmount);
 				};
 
 				// TODO: hier Amounts anpassen, zwischen Coins umrechnen und Fees
 				// berücksichtigen.
 				Callable<String> callable_exchange2Trade = () -> {
-					return arbitrageExchange2.placeLimitOrderBid(currencyPair, exchange2Price, tradeAmount);
+					return bidExchange.placeLimitOrderBid(currencyPair, exchange2Price, tradeAmount);
 				};
 
 				Future<String> future_exchange1Order = networkExecutorService.submit(callable_exchange1Trade);
@@ -247,65 +269,11 @@ public class Arbitrager {
 				}
 
 				// Nach Tradeaktivität ändert sich Kontostand, deswegen true.
-				balanceChanged = true;
+				updateWallets = true;
 			}
 
 		}
 
-	}
-
-	/**
-	 * Kontostände aktualisieren.
-	 * 
-	 * @throws NotAvailableFromExchangeException
-	 * @throws NotYetImplementedForExchangeException
-	 * @throws ExchangeException
-	 * @throws IOException
-	 */
-	public void updateBalances() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
-			ExchangeException, IOException {
-		LOGGER.trace("updateBalances()");
-
-		// Kontostände abrufen
-		double exchange1BaseUpdated = exchange1.checkBalance(currencyPair.base);
-		double exchange1CounterUpdated = exchange1.checkBalance(currencyPair.counter);
-		double exchange2BaseUpdated = exchange2.checkBalance(currencyPair.base);
-		double exchange2CounterUpdated = exchange2.checkBalance(currencyPair.counter);
-
-		double totalBase = exchange1Base + exchange2Base;
-		double totalCounter = exchange1Counter + exchange2Counter;
-
-		// Logging bzw. Printing der Veränderungen und aktuellen Kontostände.
-		LOGGER.info("{}: {} = {} | {} = {}", exchange1.toString(), currencyPair.base,
-				String.format("%.8f", exchange1BaseUpdated), currencyPair.counter,
-				String.format("%.8f", exchange1CounterUpdated));
-		LOGGER.info("{}: {} = {} | {} = {}", exchange2.toString(), currencyPair.base,
-				String.format("%.8f", exchange2BaseUpdated), currencyPair.counter,
-				String.format("%.8f", exchange2CounterUpdated));
-
-		if (startup) {
-			LOGGER.info("Total: {} = {} | {} = {}", currencyPair.base.toString(), totalBase,
-					currencyPair.counter.toString(), totalCounter);
-			startUpBase = totalBase;
-			startUpCounter = totalCounter;
-			startup = false;
-		} else {
-			LOGGER.info("Total: {} = {} ({}) {} = {} ({})", currencyPair.base, totalBase,
-					String.format("%.8f", (totalBase - this.totalBase)), currencyPair.counter, totalCounter,
-					String.format("%.8f", ((totalCounter - this.totalCounter))));
-			LOGGER.info("Profit since Start: ETH = {}, LTC = {}", String.format("%.8f", ((totalBase - startUpBase))),
-					String.format("%.8f", ((totalCounter - startUpCounter))));
-		}
-
-		// Klassenvariablen des Arbitragers updaten.
-		this.exchange1Base = exchange1BaseUpdated;
-		this.exchange1Counter = exchange1CounterUpdated;
-		this.exchange2Base = exchange2BaseUpdated;
-		this.exchange2Counter = exchange2CounterUpdated;
-		this.totalBase = totalBase;
-		this.totalCounter = totalCounter;
-		// Kontostände wieder aktuell, deswegen false.
-		balanceChanged = false;
 	}
 
 	/**
@@ -347,6 +315,109 @@ public class Arbitrager {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	}
+
+	/**
+	 * Kontostände aktualisieren.
+	 * 
+	 * @throws NotAvailableFromExchangeException
+	 * @throws NotYetImplementedForExchangeException
+	 * @throws ExchangeException
+	 * @throws IOException
+	 */
+	public void updateWallet() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
+			ExchangeException, IOException {
+		if (updateWallets) {
+			LOGGER.info("Updating Balances...");
+
+			// Multi-threaded Implementation
+			Callable<Wallet> callableExchange1Wallets = () -> {
+				return exchange1.getWallets();
+			};
+
+			Callable<Wallet> callableExchange2Wallets = () -> {
+				return exchange2.getWallets();
+			};
+
+			Future<Wallet> futureExchange1Wallets = networkExecutorService.submit(callableExchange1Wallets);
+			Future<Wallet> futureExchange2Wallets = networkExecutorService.submit(callableExchange2Wallets);
+
+			try {
+				exchange1Wallet = futureExchange1Wallets.get();
+				double exchange1BaseBalance = exchange1Wallet.getBalance(currencyPair.base).getAvailable()
+						.doubleValue();
+				double exchange1CounterBalance = exchange1Wallet.getBalance(currencyPair.counter).getAvailable()
+						.doubleValue();
+				LOGGER.info("[{}, {}] Balance: {}", exchange1, currencyPair.base, exchange1BaseBalance);
+				LOGGER.info("[{}, {}] Balance: {}", exchange1, currencyPair.counter, exchange1CounterBalance);
+
+				exchange2Wallet = futureExchange2Wallets.get();
+				double exchange2BaseBalance = exchange2Wallet.getBalance(currencyPair.base).getAvailable()
+						.doubleValue();
+				double exchange2CounterBalance = exchange2Wallet.getBalance(currencyPair.counter).getAvailable()
+						.doubleValue();
+				LOGGER.info("[{}, {}] Balance: {}", exchange2, currencyPair.base, exchange2BaseBalance);
+				LOGGER.info("[{}, {}] Balance: {}", exchange2, currencyPair.counter, exchange2CounterBalance);
+
+				LOGGER.info("[Total, {}] Balance: {}", currencyPair.base,
+						(exchange1BaseBalance + exchange2BaseBalance));
+				LOGGER.info("[Total, {}] Balance: {}", currencyPair.counter,
+						(exchange1CounterBalance + exchange2CounterBalance));
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (ExecutionException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+			// Kontostände wieder aktuell, deswegen false.
+			updateWallets = false;
+		}
+
+		// // Kontostände abrufen
+		// double exchange1BaseUpdated = exchange1.getBalance(currencyPair.base);
+		// double exchange1CounterUpdated = exchange1.getBalance(currencyPair.counter);
+		// double exchange2BaseUpdated = exchange2.getBalance(currencyPair.base);
+		// double exchange2CounterUpdated = exchange2.getBalance(currencyPair.counter);
+		//
+		// double totalBase = exchange1BaseAmount + exchange2BaseAmount;
+		// double totalCounter = exchange1CounterAmount + exchange2CounterAmount;
+		//
+		// // Logging bzw. Printing der Veränderungen und aktuellen Kontostände.
+		// LOGGER.info("{}: {} = {} | {} = {}", exchange1.toString(), currencyPair.base,
+		// String.format("%.8f", exchange1BaseUpdated), currencyPair.counter,
+		// String.format("%.8f", exchange1CounterUpdated));
+		// LOGGER.info("{}: {} = {} | {} = {}", exchange2.toString(), currencyPair.base,
+		// String.format("%.8f", exchange2BaseUpdated), currencyPair.counter,
+		// String.format("%.8f", exchange2CounterUpdated));
+		//
+		// if (startup) {
+		// LOGGER.info("Total: {} = {} | {} = {}", currencyPair.base.toString(),
+		// totalBase,
+		// currencyPair.counter.toString(), totalCounter);
+		// startUpBase = totalBase;
+		// startUpCounter = totalCounter;
+		// startup = false;
+		// } else {
+		// LOGGER.info("Total: {} = {} ({}) {} = {} ({})", currencyPair.base, totalBase,
+		// String.format("%.8f", (totalBase - this.totalBase)), currencyPair.counter,
+		// totalCounter,
+		// String.format("%.8f", ((totalCounter - this.totalCounter))));
+		// LOGGER.info("Profit since Start: ETH = {}, LTC = {}", String.format("%.8f",
+		// ((totalBase - startUpBase))),
+		// String.format("%.8f", ((totalCounter - startUpCounter))));
+		// }
+		//
+		// // Klassenvariablen des Arbitragers updaten.
+		// this.exchange1BaseAmount = exchange1BaseUpdated;
+		// this.exchange1CounterAmount = exchange1CounterUpdated;
+		// this.exchange2BaseAmount = exchange2BaseUpdated;
+		// this.exchange2CounterAmount = exchange2CounterUpdated;
+		// this.totalBase = totalBase;
+		// this.totalCounter = totalCounter;
+		// // Kontostände wieder aktuell, deswegen false.
+		// balanceChanged = false;
 	}
 
 }

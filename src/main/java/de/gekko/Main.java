@@ -25,7 +25,7 @@ public class Main {
 	 * Speichert den Logger.
 	 */
 	private static final Logger LOGGER = LoggerFactory.getLogger("Main");
-	
+
 	public static void main(String[] args) throws NotAvailableFromExchangeException,
 			NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
 
@@ -43,9 +43,7 @@ public class Main {
 
 		for (int i = 0; i < listExhanges.size() - 1; i++) {
 			for (int j = i + 1; j < listExhanges.size(); j++) {
-				Arbitrager arbitrager = new Arbitrager(listExhanges.get(i), listExhanges.get(j), currencyPair);
-				listArbitrager.add(arbitrager);
-				LOGGER.info("Created new Arbitrager: {}", arbitrager);
+				listArbitrager.add(new Arbitrager(listExhanges.get(i), listExhanges.get(j), currencyPair));
 			}
 		}
 
@@ -55,6 +53,11 @@ public class Main {
 			try {
 
 				for (Arbitrager arbitrager : listArbitrager) {
+					/**
+					 * updateBalances wird nur zu Programmstart und nach einem erfolgreichen Trade
+					 * wirklich durchgeführt.
+					 */
+					arbitrager.updateWallet();
 					arbitrager.updateOrderbooks();
 					arbitrager.limitOrderArbitrage();
 

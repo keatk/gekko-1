@@ -22,7 +22,7 @@ public class BitfinexArbitrageExchange extends AbstractArbitrageExchange {
 	}
 
 	@Override
-	public double checkBalance(Currency currency) throws NotAvailableFromExchangeException,
+	public double getBalance(Currency currency) throws NotAvailableFromExchangeException,
 			NotYetImplementedForExchangeException, ExchangeException, IOException {
 		return accountService.getAccountInfo().getWallet().getBalance(currency).getTotal().doubleValue();
 	}
