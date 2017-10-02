@@ -1,9 +1,6 @@
 package de.gekko;
 
 import java.io.IOException;
-import java.net.ConnectException;
-import java.net.SocketTimeoutException;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,19 +9,11 @@ import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.exceptions.NotAvailableFromExchangeException;
 import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import de.gekko.arbitrager.Arbitrager;
 import de.gekko.exchanges.AbstractArbitrageExchange;
 import de.gekko.io.ResourceManager;
 
 public class Main {
-
-	/**
-	 * Speichert den Logger.
-	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger("Main");
 
 	public static void main(String[] args) throws NotAvailableFromExchangeException,
 			NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
@@ -47,25 +36,14 @@ public class Main {
 			}
 		}
 
-		long startTime = System.nanoTime();
-
 		while (true) {
 			try {
-
 				for (Arbitrager arbitrager : listArbitrager) {
-					/**
-					 * updateBalances wird nur zu Programmstart und nach einem erfolgreichen Trade
-					 * wirklich durchgeführt.
-					 */
-					arbitrager.updateWallet();
-					arbitrager.updateOrderbooks();
 					arbitrager.limitOrderArbitrage();
 
 					Thread.sleep(3000);
 				}
-
-			} catch (ConnectException | SocketTimeoutException | UnknownHostException
-					| si.mazi.rescu.HttpStatusIOException Exception) {
+			} catch (Exception e) {
 				System.err.println("Connection Failed. Retry in 30 sec...");
 				Thread.sleep(30000);
 			}

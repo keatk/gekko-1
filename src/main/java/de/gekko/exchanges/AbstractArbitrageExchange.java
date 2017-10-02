@@ -3,14 +3,12 @@ package de.gekko.exchanges;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Map;
-
 import org.knowm.xchange.Exchange;
-import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order.OrderType;
-import org.knowm.xchange.dto.account.Balance;
 import org.knowm.xchange.dto.account.Wallet;
 import org.knowm.xchange.dto.marketdata.OrderBook;
+import org.knowm.xchange.dto.marketdata.Ticker;
 import org.knowm.xchange.dto.meta.CurrencyPairMetaData;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.exceptions.ExchangeException;
@@ -28,7 +26,7 @@ public abstract class AbstractArbitrageExchange {
 	/**
 	 * Speichert den AccountService.
 	 */
-	protected AccountService accountService;
+	private AccountService accountService;
 
 	/**
 	 * Speichert die Map der CurrencyPairs mit ihren Metadaten. Enthält alle
@@ -36,7 +34,7 @@ public abstract class AbstractArbitrageExchange {
 	 * beispielsweise die TradingFees. Hält ebenso Informationen über
 	 * Min/Max-Amounts der Exchanges.
 	 */
-	protected Map<CurrencyPair, CurrencyPairMetaData> currencyPairs;
+	private Map<CurrencyPair, CurrencyPairMetaData> currencyPairs;
 
 	/**
 	 * Speichert die Anzahl Nachkommastellen die bei Trades erlaubt sind.
@@ -46,17 +44,42 @@ public abstract class AbstractArbitrageExchange {
 	/**
 	 * Speichert den Exchange.
 	 */
-	protected Exchange exchange;
+	private Exchange exchange;
 
 	/**
 	 * Speichert den MarketDataService.
 	 */
-	protected MarketDataService marketDataService;
+	private MarketDataService marketDataService;
+
+	/**
+	 * Speichert die minimale Menge, die getraded werden muss auf dem Exchange.
+	 */
+	private double minimumAmount;
+
+	/**
+	 * Speichert das OrderBook des Exchanges.
+	 */
+	private OrderBook orderBook;
+
+	/**
+	 * Speichert den Ticker des Exchanges
+	 */
+	private Ticker ticker;
 
 	/**
 	 * Speichert den TradeService.
 	 */
-	protected TradeService tradeService;
+	private TradeService tradeService;
+
+	/**
+	 * Speichert die TradingFee des Exchanges;
+	 */
+	private double tradingFee;
+
+	/**
+	 * Speichert den Wallet.
+	 */
+	private Wallet wallet;
 
 	/**
 	 * Bricht Order ab.
@@ -73,32 +96,6 @@ public abstract class AbstractArbitrageExchange {
 		return tradeService.cancelOrder(orderID);
 	}
 
-	public double getBalance(Currency currency) throws NotAvailableFromExchangeException,
-			NotYetImplementedForExchangeException, ExchangeException, IOException {
-		Map<Currency, Balance> balances = accountService.getAccountInfo().getWallet().getBalances();
-		return balances.get(currency).getTotal().doubleValue();
-	}
-
-	public int getDecimals() {
-		return decimals;
-	}
-
-	/**
-	 * Liefert die minimale Menge, die auf dem Exchange getraded werden muss
-	 * abhängig vom CurrencyPair.
-	 * 
-	 * @param currencyPair
-	 * @return maximum trading amount. Liefert -1, wenn nicht anwendbar.
-	 */
-	public double getMaximumAmount(CurrencyPair currencyPair) {
-		try {
-			return currencyPairs.get(currencyPair).getMaximumAmount().doubleValue();
-		} catch (NullPointerException npe) {
-			// Keine Maximum Amount für Exchange.
-			return -1;
-		}
-	}
-
 	/**
 	 * Liefert die minimale Menge, die auf dem Exchange getraded werden muss
 	 * abhängig vom CurrencyPair.
@@ -106,7 +103,7 @@ public abstract class AbstractArbitrageExchange {
 	 * @param currencyPair
 	 * @return minimum trading amount. Liefert -1, wenn nicht anwendbar.
 	 */
-	public double getMinimumAmount(CurrencyPair currencyPair) {
+	public double fetchMinimumAmount(CurrencyPair currencyPair) {
 		try {
 			return currencyPairs.get(currencyPair).getMinimumAmount().doubleValue();
 		} catch (NullPointerException npe) {
@@ -115,9 +112,14 @@ public abstract class AbstractArbitrageExchange {
 		}
 	}
 
-	public OrderBook getOrderbook(CurrencyPair currencyPair) throws NotAvailableFromExchangeException,
+	public OrderBook fetchOrderbook(CurrencyPair currencyPair) throws NotAvailableFromExchangeException,
 			NotYetImplementedForExchangeException, ExchangeException, IOException {
-		return marketDataService.getOrderBook(currencyPair);
+		return getMarketDataService().getOrderBook(currencyPair);
+	}
+
+	public Ticker fetchTicker(CurrencyPair currencyPair) throws NotAvailableFromExchangeException,
+			NotYetImplementedForExchangeException, ExchangeException, IOException {
+		return getMarketDataService().getTicker(currencyPair);
 	}
 
 	/**
@@ -126,7 +128,7 @@ public abstract class AbstractArbitrageExchange {
 	 * @param currencyPair
 	 * @return die TradingFees für ein gegebenes CurrencyPair.
 	 */
-	public double getTradingFee(CurrencyPair currencyPair) {
+	public double fetchTradingFee(CurrencyPair currencyPair) {
 		try {
 			return currencyPairs.get(currencyPair).getTradingFee().doubleValue();
 		} catch (NullPointerException npe) {
@@ -139,15 +141,51 @@ public abstract class AbstractArbitrageExchange {
 		}
 	}
 
-	public Wallet getWallets() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
+	public Wallet fetchWallet() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException,
 			ExchangeException, IOException {
-		Map<String, Wallet> mapWallets = accountService.getAccountInfo().getWallets();
+		Map<String, Wallet> mapWallets = getAccountService().getAccountInfo().getWallets();
 		if (mapWallets.keySet().size() == 1) {
 			// Bisher alle Fälle immer == 1, gebe also erstes Element
 			return mapWallets.values().iterator().next();
 		} else {
 			throw new ExchangeException("More than one Wallet in WalletMap!");
 		}
+	}
+
+	protected AccountService getAccountService() {
+		return accountService;
+	}
+
+	public int getDecimals() {
+		return decimals;
+	}
+
+	protected Exchange getExchange() {
+		return exchange;
+	}
+
+	protected MarketDataService getMarketDataService() {
+		return marketDataService;
+	}
+
+	public double getMinimumAmount() {
+		return minimumAmount;
+	}
+
+	public OrderBook getOrderbook() {
+		return orderBook;
+	}
+
+	public Ticker getTicker() {
+		return ticker;
+	}
+
+	public double getTradingFee() {
+		return tradingFee;
+	}
+
+	public Wallet getWallet() {
+		return wallet;
 	}
 
 	protected void initServices() {
@@ -208,8 +246,33 @@ public abstract class AbstractArbitrageExchange {
 		this.decimals = decimals;
 	}
 
+	protected void setExchange(Exchange exchange) {
+		this.exchange = exchange;
+	}
+
+	public void setMinimumAmount(double minimumAmount) {
+		this.minimumAmount = minimumAmount;
+	}
+
+	public void setOrderBook(OrderBook orderBook) {
+		this.orderBook = orderBook;
+	}
+
+	public void setTicker(Ticker ticker) {
+		this.ticker = ticker;
+	}
+
+	public void setTradingFee(double tradingFee) {
+		this.tradingFee = tradingFee;
+	}
+
+	public void setWallet(Wallet wallet) {
+		this.wallet = wallet;
+	}
+
 	@Override
 	public String toString() {
 		return exchange.getDefaultExchangeSpecification().getExchangeName();
 	}
+
 }

@@ -10,7 +10,7 @@ public class BittrexArbitrageExchange extends AbstractArbitrageExchange {
 		ExchangeSpecification exchangeSpecification = new ExchangeSpecification(BittrexExchange.class.getName());
 		exchangeSpecification.setApiKey(apiKey);
 		exchangeSpecification.setSecretKey(secretKey);
-		exchange = ExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
+		setExchange(ExchangeFactory.INSTANCE.createExchange(exchangeSpecification));
 
 		initServices();
 	}
