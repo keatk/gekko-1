@@ -64,8 +64,14 @@ public class Arbitrager {
 		this.exchange2 = exchange2;
 		this.currencyPair = currencyPair;
 
+		/**
+		 * Einmal benötigte Daten können hier erfragt werden.
+		 */
 		exchange1.setTradingFee(exchange1.fetchTradingFee(currencyPair));
-		exchange1.setTradingFee(exchange2.fetchTradingFee(currencyPair));
+		exchange2.setTradingFee(exchange2.fetchTradingFee(currencyPair));
+
+		exchange1.setMinimumAmount(exchange1.fetchMinimumAmount(currencyPair));
+		exchange2.setMinimumAmount(exchange2.fetchMinimumAmount(currencyPair));
 		// TODO: sanity checks for currency mismatch
 	}
 
@@ -78,10 +84,9 @@ public class Arbitrager {
 	 * @param priceBid
 	 * @return die Arbitrage unter Berücksichtigung der Fees.
 	 */
-	private double getArbitragePercentage(double priceAsk, double priceBid) {
+	private double getArbitragePercentage(double priceAsk, double priceBid, double tradingFeeExchange1,
+			double tradingFeeExchange2) {
 		double grossMargin = 1 - priceAsk / priceBid;
-		double tradingFeeExchange1 = exchange1.getTradingFee();
-		double tradingFeeExchange2 = exchange2.getTradingFee();
 		return (grossMargin - tradingFeeExchange1 - tradingFeeExchange2) * 100;
 	}
 
@@ -145,7 +150,10 @@ public class Arbitrager {
 		LOGGER.info("[{}, BID] Price: {}", bidExchange, priceBidExchange);
 
 		// Arbitrage berechnen
-		double arbitragePercentage = getArbitragePercentage(priceAskExchange, priceBidExchange);
+		double tradingFeeExchange1 = askExchange.getTradingFee();
+		double tradingFeeExchange2 = bidExchange.getTradingFee();
+		double arbitragePercentage = getArbitragePercentage(priceAskExchange, priceBidExchange, tradingFeeExchange1,
+				tradingFeeExchange2);
 		LOGGER.info("[{} -> {}] Arbitrage: {}", askExchange.toString(), bidExchange.toString(),
 				String.format("%.8f", arbitragePercentage));
 
@@ -164,10 +172,10 @@ public class Arbitrager {
 			// tradeAmountETH = btceAmount;
 			// }
 			/**
-			 * TODO: Maximale und minimale TradeLimits der Exchanges können in der
+			 * TODO: Minimales TradeLimit der Exchanges kann in der
 			 * AbstractArbitrageExchange-Klasse erfragt werden.
 			 */
-			 final double tradeAmount = 0;
+			final double tradeAmount = 0;
 
 			if (DEBUG == false) {
 				// TODO: Ausgabe/Logging der trades implementieren
