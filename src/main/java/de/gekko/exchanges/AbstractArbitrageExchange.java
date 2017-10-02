@@ -11,6 +11,7 @@ import org.knowm.xchange.dto.marketdata.OrderBook;
 import org.knowm.xchange.dto.marketdata.Ticker;
 import org.knowm.xchange.dto.meta.CurrencyPairMetaData;
 import org.knowm.xchange.dto.trade.LimitOrder;
+import org.knowm.xchange.dto.trade.MarketOrder;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.exceptions.NotAvailableFromExchangeException;
 import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
@@ -39,7 +40,7 @@ public abstract class AbstractArbitrageExchange {
 	/**
 	 * Speichert die Anzahl Nachkommastellen die bei Trades erlaubt sind.
 	 */
-	private int decimals;
+	private int decimals = 8;
 
 	/**
 	 * Speichert den Exchange.
@@ -217,6 +218,48 @@ public abstract class AbstractArbitrageExchange {
 		LimitOrder limitOrder = new LimitOrder.Builder(OrderType.ASK, currencyPair).limitPrice(askPrice)
 				.tradableAmount(askAmount).build();
 		return tradeService.placeLimitOrder(limitOrder);
+	}
+
+	/**
+	 * Führt eine MarketOrder als ASK aus.
+	 * 
+	 * @param currencyPair
+	 * @param askAmountDouble
+	 * @return
+	 * @throws NotAvailableFromExchangeException
+	 * @throws NotYetImplementedForExchangeException
+	 * @throws ExchangeException
+	 * @throws IOException
+	 */
+	public String placeMarketOrderAsk(CurrencyPair currencyPair, double askAmountDouble)
+			throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException,
+			IOException {
+		BigDecimal askAmount = BigDecimal.valueOf(askAmountDouble).setScale(decimals, BigDecimal.ROUND_HALF_UP);
+
+		return getTradeService().placeMarketOrder(new MarketOrder(OrderType.ASK, askAmount, currencyPair));
+	}
+
+	/**
+	 * Führt eine MarketOrder als BID aus.
+	 * 
+	 * @param currencyPair
+	 * @param bidAmountDouble
+	 * @return
+	 * @throws NotAvailableFromExchangeException
+	 * @throws NotYetImplementedForExchangeException
+	 * @throws ExchangeException
+	 * @throws IOException
+	 */
+	public String placeMarketOrderBid(CurrencyPair currencyPair, double bidAmountDouble)
+			throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException,
+			IOException {
+		BigDecimal askAmount = BigDecimal.valueOf(bidAmountDouble).setScale(decimals, BigDecimal.ROUND_HALF_UP);
+
+		return getTradeService().placeMarketOrder(new MarketOrder(OrderType.BID, askAmount, currencyPair));
+	}
+
+	protected TradeService getTradeService() {
+		return tradeService;
 	}
 
 	/**
