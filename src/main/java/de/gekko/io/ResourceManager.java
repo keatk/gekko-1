@@ -27,6 +27,7 @@ import de.gekko.exchanges.AbstractArbitrageExchange;
 import de.gekko.exchanges.BitfinexArbitrageExchange;
 import de.gekko.exchanges.BitstampArbitragerExchange;
 import de.gekko.exchanges.BittrexArbitrageExchange;
+import de.gekko.exchanges.CexIOArbitrageExchange;
 import de.gekko.exchanges.GDaxArbitragerExchange;
 import javafx.scene.image.Image;
 
@@ -123,7 +124,7 @@ public class ResourceManager {
 		final List<AbstractArbitrageExchange> listExchanges = new ArrayList<>();
 		for (int i = 0; i < exchanges.size(); i++) {
 			final JsonObject exchange = exchanges.get(i).getAsJsonObject();
-			
+
 			final ExchangeType type = ExchangeType.valueOf(exchange.get("name").getAsString());
 			final String apiKey = exchange.get("apikey").getAsString();
 			final String secretKey = exchange.get("secretkey").getAsString();
@@ -137,11 +138,18 @@ public class ResourceManager {
 				break;
 			case GDAX:
 				final String passPhrase = exchange.get("passphrase").getAsString();
-				listExchanges.add(new GDaxArbitragerExchange(apiKey, secretKey, passPhrase));
+				final double takerFeeGDax = exchange.get("takerfee").getAsDouble();
+				listExchanges.add(new GDaxArbitragerExchange(apiKey, secretKey, passPhrase, takerFeeGDax));
 				break;
 			case BITSTAMP:
 				final String userName = exchange.get("username").getAsString();
 				listExchanges.add(new BitstampArbitragerExchange(apiKey, secretKey, userName));
+				break;
+			case CEXIO:
+				final String userId = exchange.get("userid").getAsString();
+				final double takerFeeCexIO = exchange.get("takerfee").getAsDouble();
+				listExchanges.add(new CexIOArbitrageExchange(apiKey, secretKey, userId, takerFeeCexIO));
+				break;
 			default:
 				break;
 			}
