@@ -8,6 +8,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import org.knowm.xchange.currency.CurrencyPair;
+import org.knowm.xchange.dto.account.Balance;
 import org.knowm.xchange.dto.account.Wallet;
 import org.knowm.xchange.dto.marketdata.OrderBook;
 import org.knowm.xchange.exceptions.ExchangeException;
@@ -343,18 +344,25 @@ public class Arbitrager {
 
 			try {
 				exchange1Wallet = futureExchange1Wallets.get();
-				LOGGER.info("[{}, {}] Balance: {}", exchange1, currencyPair.base,
-						exchange1Wallet.getBalance(currencyPair.base));
-				LOGGER.info("[{}, {}] Balance: {}", exchange1, currencyPair.counter,
-						exchange1Wallet.getBalance(currencyPair.counter));
+				double exchange1BaseBalance = exchange1Wallet.getBalance(currencyPair.base).getAvailable()
+						.doubleValue();
+				double exchange1CounterBalance = exchange1Wallet.getBalance(currencyPair.counter).getAvailable()
+						.doubleValue();
+				LOGGER.info("[{}, {}] Balance: {}", exchange1, currencyPair.base, exchange1BaseBalance);
+				LOGGER.info("[{}, {}] Balance: {}", exchange1, currencyPair.counter, exchange1CounterBalance);
 
 				exchange2Wallet = futureExchange2Wallets.get();
-				LOGGER.info("[{}, {}] Balance: {}", exchange2, currencyPair.base,
-						exchange2Wallet.getBalance(currencyPair.base));
-				LOGGER.info("[{}, {}] Balance: {}", exchange2, currencyPair.counter,
-						exchange2Wallet.getBalance(currencyPair.counter));
-				
-				// TODO: Ausgabe der kombinierten Balances.
+				double exchange2BaseBalance = exchange2Wallet.getBalance(currencyPair.base).getAvailable()
+						.doubleValue();
+				double exchange2CounterBalance = exchange2Wallet.getBalance(currencyPair.counter).getAvailable()
+						.doubleValue();
+				LOGGER.info("[{}, {}] Balance: {}", exchange2, currencyPair.base, exchange2BaseBalance);
+				LOGGER.info("[{}, {}] Balance: {}", exchange2, currencyPair.counter, exchange2CounterBalance);
+
+				LOGGER.info("[Total, {}] Balance: {}", currencyPair.base,
+						(exchange1BaseBalance + exchange2BaseBalance));
+				LOGGER.info("[Total, {}] Balance: {}", currencyPair.counter,
+						(exchange1CounterBalance + exchange2CounterBalance));
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
