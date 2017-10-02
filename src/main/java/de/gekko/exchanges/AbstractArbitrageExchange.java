@@ -48,6 +48,13 @@ public abstract class AbstractArbitrageExchange {
 	private Exchange exchange;
 
 	/**
+	 * When you place an order which is not immediately matched by an existing
+	 * order, that order is placed on the order book. If another customer places an
+	 * order that matches yours, you are considered the maker.
+	 */
+	private double makerFee = -1;
+
+	/**
 	 * Speichert den MarketDataService.
 	 */
 	private MarketDataService marketDataService;
@@ -61,6 +68,12 @@ public abstract class AbstractArbitrageExchange {
 	 * Speichert das OrderBook des Exchanges.
 	 */
 	private OrderBook orderBook;
+
+	/**
+	 * When you place an order at the market price that gets filled immediately, you
+	 * are considered a taker and will pay a fee.
+	 */
+	private double takerFee = -1;
 
 	/**
 	 * Speichert den Ticker des Exchanges
@@ -165,6 +178,14 @@ public abstract class AbstractArbitrageExchange {
 		return exchange;
 	}
 
+	public double getMakerFee() {
+		if (makerFee == -1) {
+			return getTradingFee();
+		} else {
+			return makerFee;
+		}
+	}
+
 	protected MarketDataService getMarketDataService() {
 		return marketDataService;
 	}
@@ -177,11 +198,23 @@ public abstract class AbstractArbitrageExchange {
 		return orderBook;
 	}
 
+	public double getTakerFee() {
+		if (takerFee == -1) {
+			return getTradingFee();
+		} else {
+			return takerFee;
+		}
+	}
+
 	public Ticker getTicker() {
 		return ticker;
 	}
 
-	public double getTradingFee() {
+	protected TradeService getTradeService() {
+		return tradeService;
+	}
+
+	private double getTradingFee() {
 		return tradingFee;
 	}
 
@@ -216,6 +249,29 @@ public abstract class AbstractArbitrageExchange {
 		BigDecimal askAmount = BigDecimal.valueOf(askAmountDouble).setScale(decimals, BigDecimal.ROUND_HALF_UP);
 
 		LimitOrder limitOrder = new LimitOrder.Builder(OrderType.ASK, currencyPair).limitPrice(askPrice)
+				.tradableAmount(askAmount).build();
+		return tradeService.placeLimitOrder(limitOrder);
+	}
+
+	/**
+	 * Führt Limitorder als Bid aus.
+	 * 
+	 * @param currencyPair
+	 * @param bidPrice
+	 * @param bidAmount
+	 * @return
+	 * @throws NotAvailableFromExchangeException
+	 * @throws NotYetImplementedForExchangeException
+	 * @throws ExchangeException
+	 * @throws IOException
+	 */
+	public String placeLimitOrderBid(CurrencyPair currencyPair, double bidPrice, double bidAmount)
+			throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException,
+			IOException {
+		BigDecimal askPrice = BigDecimal.valueOf(bidPrice).setScale(decimals, BigDecimal.ROUND_HALF_UP);
+		BigDecimal askAmount = BigDecimal.valueOf(bidAmount).setScale(decimals, BigDecimal.ROUND_HALF_UP);
+
+		LimitOrder limitOrder = new LimitOrder.Builder(OrderType.BID, currencyPair).limitPrice(askPrice)
 				.tradableAmount(askAmount).build();
 		return tradeService.placeLimitOrder(limitOrder);
 	}
@@ -258,33 +314,6 @@ public abstract class AbstractArbitrageExchange {
 		return getTradeService().placeMarketOrder(new MarketOrder(OrderType.BID, askAmount, currencyPair));
 	}
 
-	protected TradeService getTradeService() {
-		return tradeService;
-	}
-
-	/**
-	 * Führt Limitorder als Bid aus.
-	 * 
-	 * @param currencyPair
-	 * @param bidPrice
-	 * @param bidAmount
-	 * @return
-	 * @throws NotAvailableFromExchangeException
-	 * @throws NotYetImplementedForExchangeException
-	 * @throws ExchangeException
-	 * @throws IOException
-	 */
-	public String placeLimitOrderBid(CurrencyPair currencyPair, double bidPrice, double bidAmount)
-			throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException,
-			IOException {
-		BigDecimal askPrice = BigDecimal.valueOf(bidPrice).setScale(decimals, BigDecimal.ROUND_HALF_UP);
-		BigDecimal askAmount = BigDecimal.valueOf(bidAmount).setScale(decimals, BigDecimal.ROUND_HALF_UP);
-
-		LimitOrder limitOrder = new LimitOrder.Builder(OrderType.BID, currencyPair).limitPrice(askPrice)
-				.tradableAmount(askAmount).build();
-		return tradeService.placeLimitOrder(limitOrder);
-	}
-
 	public void setDecimals(int decimals) {
 		this.decimals = decimals;
 	}
@@ -293,12 +322,20 @@ public abstract class AbstractArbitrageExchange {
 		this.exchange = exchange;
 	}
 
+	public void setMakerFee(double makerFee) {
+		this.makerFee = makerFee;
+	}
+
 	public void setMinimumAmount(double minimumAmount) {
 		this.minimumAmount = minimumAmount;
 	}
 
 	public void setOrderBook(OrderBook orderBook) {
 		this.orderBook = orderBook;
+	}
+
+	public void setTakerFee(double takerFee) {
+		this.takerFee = takerFee;
 	}
 
 	public void setTicker(Ticker ticker) {

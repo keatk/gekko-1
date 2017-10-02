@@ -22,15 +22,15 @@ import de.gekko.exchanges.AbstractArbitrageExchange;
 
 public class MarketOrderArbitrager implements Runnable {
 
+	private static boolean DEBUG = true;
 	/**
 	 * Speichert den Logger.
 	 */
 	private static final Logger LOGGER = LoggerFactory.getLogger("MarketOrderArbitrager");
-	private static boolean DEBUG = true;
+	private CurrencyPair currencyPair;
 	private Map<String, AbstractArbitrageExchange> mapExchanges;
 	private String nameExchangeOne;
 	private String nameExchangeTwo;
-	private CurrencyPair currencyPair;
 	/**
 	 * Speichert den Executor Service für Netzwerkanfragen auf die Exchanges.
 	 */
@@ -63,83 +63,6 @@ public class MarketOrderArbitrager implements Runnable {
 		updateWallets = true;
 	}
 
-	private AbstractArbitrageExchange getExchangeOne() {
-		return mapExchanges.get(nameExchangeOne);
-	}
-
-	private AbstractArbitrageExchange getExchangeTwo() {
-		return mapExchanges.get(nameExchangeTwo);
-	}
-
-	/**
-	 * Aktualisiert das OrderBook für einen gegebenen Exchange.
-	 * 
-	 * @param exchange
-	 */
-	void updateOrderbook(AbstractArbitrageExchange exchange) {
-		LOGGER.info("Updating Orderbooks for {}", exchange.toString());
-
-		// Multi-threaded Implementation
-		Callable<OrderBook> callableOrderbook = () -> {
-			return exchange.fetchOrderbook(currencyPair);
-		};
-
-		Future<OrderBook> futureOrderbook = networkExecutorService.submit(callableOrderbook);
-
-		try {
-			exchange.setOrderBook(futureOrderbook.get());
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-
-	/**
-	 * Aktualisiert den Ticker für eine gegebene Exchange.
-	 * 
-	 * @param exchange
-	 */
-	void updateTicker(AbstractArbitrageExchange exchange) {
-		LOGGER.info("Updating Ticker for {}", exchange.toString());
-
-		// Multi-threaded Implementation
-		Callable<Ticker> callableTicker = () -> {
-			return exchange.fetchTicker(currencyPair);
-		};
-
-		Future<Ticker> futureTicker = networkExecutorService.submit(callableTicker);
-
-		try {
-			exchange.setTicker(futureTicker.get());
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-
-	/**
-	 * Aktualisiert den Wallet für einen gegeben Exchange.
-	 * 
-	 * @param exchange
-	 */
-	void updateWallet(AbstractArbitrageExchange exchange) {
-		LOGGER.info("Updating Wallet for {}", exchange);
-
-		// Multi-threaded Implementation
-		Callable<Wallet> callableExchange1Wallets = () -> {
-			return exchange.fetchWallet();
-		};
-
-		Future<Wallet> futureExchange1Wallets = networkExecutorService.submit(callableExchange1Wallets);
-
-		try {
-			exchange.setWallet(futureExchange1Wallets.get());
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-
 	/**
 	 * Berechnet prozentuale Arbitrage. Dabei werden die Fees der Exchanges
 	 * berücksichtigt. Theoretisch ist ein Arbitrage profitabel, sobald diese
@@ -149,10 +72,18 @@ public class MarketOrderArbitrager implements Runnable {
 	 * @param priceBid
 	 * @return die Arbitrage unter Berücksichtigung der Fees.
 	 */
-	private double calculateArbitragePercentage(double priceAsk, double priceBid, double tradingFeeExchange1,
-			double tradingFeeExchange2) {
+	private double calculateArbitragePercentage(double priceAsk, double priceBid, double takerFeeAsk,
+			double takerFeeBid) {
 		double grossMargin = 1 - priceAsk / priceBid;
-		return (grossMargin - tradingFeeExchange1 - tradingFeeExchange2) * 100;
+		return (grossMargin - takerFeeAsk - takerFeeBid) * 100;
+	}
+
+	private AbstractArbitrageExchange getExchangeOne() {
+		return mapExchanges.get(nameExchangeOne);
+	}
+
+	private AbstractArbitrageExchange getExchangeTwo() {
+		return mapExchanges.get(nameExchangeTwo);
 	}
 
 	private void performMarketOrderArbitrage(AbstractArbitrageExchange askExchange,
@@ -169,10 +100,8 @@ public class MarketOrderArbitrager implements Runnable {
 		LOGGER.info("[{}, BID] Price: {}", bidExchange, priceBidExchange);
 
 		// Arbitrage berechnen
-		double tradingFeeExchange1 = askExchange.getTradingFee();
-		double tradingFeeExchange2 = bidExchange.getTradingFee();
 		double arbitragePercentage = calculateArbitragePercentage(priceAskExchange, priceBidExchange,
-				tradingFeeExchange1, tradingFeeExchange2);
+				askExchange.getTakerFee(), bidExchange.getTakerFee());
 		LOGGER.info("[{} -> {}] Arbitrage: {}", askExchange.toString(), bidExchange.toString(),
 				String.format("%.8f", arbitragePercentage));
 
@@ -282,6 +211,75 @@ public class MarketOrderArbitrager implements Runnable {
 			}
 		}
 
+	}
+
+	/**
+	 * Aktualisiert das OrderBook für einen gegebenen Exchange.
+	 * 
+	 * @param exchange
+	 */
+	void updateOrderbook(AbstractArbitrageExchange exchange) {
+		LOGGER.info("Updating Orderbooks for {}", exchange.toString());
+
+		// Multi-threaded Implementation
+		Callable<OrderBook> callableOrderbook = () -> {
+			return exchange.fetchOrderbook(currencyPair);
+		};
+
+		Future<OrderBook> futureOrderbook = networkExecutorService.submit(callableOrderbook);
+
+		try {
+			exchange.setOrderBook(futureOrderbook.get());
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Aktualisiert den Ticker für eine gegebene Exchange.
+	 * 
+	 * @param exchange
+	 */
+	void updateTicker(AbstractArbitrageExchange exchange) {
+		LOGGER.info("Updating Ticker for {}", exchange.toString());
+
+		// Multi-threaded Implementation
+		Callable<Ticker> callableTicker = () -> {
+			return exchange.fetchTicker(currencyPair);
+		};
+
+		Future<Ticker> futureTicker = networkExecutorService.submit(callableTicker);
+
+		try {
+			exchange.setTicker(futureTicker.get());
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Aktualisiert den Wallet für einen gegeben Exchange.
+	 * 
+	 * @param exchange
+	 */
+	void updateWallet(AbstractArbitrageExchange exchange) {
+		LOGGER.info("Updating Wallet for {}", exchange);
+
+		// Multi-threaded Implementation
+		Callable<Wallet> callableExchange1Wallets = () -> {
+			return exchange.fetchWallet();
+		};
+
+		Future<Wallet> futureExchange1Wallets = networkExecutorService.submit(callableExchange1Wallets);
+
+		try {
+			exchange.setWallet(futureExchange1Wallets.get());
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 }

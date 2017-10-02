@@ -149,8 +149,9 @@ public class LimitOrderArbitrager {
 		LOGGER.info("[{}, BID] Price: {}", bidExchange, priceBidExchange);
 
 		// Arbitrage berechnen
-		double tradingFeeExchange1 = askExchange.getTradingFee();
-		double tradingFeeExchange2 = bidExchange.getTradingFee();
+		// getMakerFee gibt TradingFee, falls nicht explizit gesetzt.
+		double tradingFeeExchange1 = askExchange.getMakerFee();
+		double tradingFeeExchange2 = bidExchange.getMakerFee();
 		double arbitragePercentage = calculateArbitragePercentage(priceAskExchange, priceBidExchange,
 				tradingFeeExchange1, tradingFeeExchange2);
 		LOGGER.info("[{} -> {}] Arbitrage: {}", askExchange.toString(), bidExchange.toString(),

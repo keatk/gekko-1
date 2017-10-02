@@ -6,7 +6,7 @@ import org.knowm.xchange.gdax.GDAXExchange;
 
 public class GDaxArbitragerExchange extends AbstractArbitrageExchange {
 
-	public GDaxArbitragerExchange(String apiKey, String secretKey, String passPhrase) {
+	public GDaxArbitragerExchange(String apiKey, String secretKey, String passPhrase, double takerFee) {
 		ExchangeSpecification exchangeSpecification = new ExchangeSpecification(GDAXExchange.class.getName());
 		exchangeSpecification.setApiKey(apiKey);
 		exchangeSpecification.setSecretKey(secretKey);
@@ -14,6 +14,8 @@ public class GDaxArbitragerExchange extends AbstractArbitrageExchange {
 		setExchange(ExchangeFactory.INSTANCE.createExchange(exchangeSpecification));
 
 		initServices();
+		setMakerFee(0);
+		setTakerFee(takerFee);
 	}
 
 	/**

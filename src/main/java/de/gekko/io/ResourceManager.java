@@ -137,7 +137,8 @@ public class ResourceManager {
 				break;
 			case GDAX:
 				final String passPhrase = exchange.get("passphrase").getAsString();
-				listExchanges.add(new GDaxArbitragerExchange(apiKey, secretKey, passPhrase));
+				final double takerFee = exchange.get("takerfee").getAsDouble();
+				listExchanges.add(new GDaxArbitragerExchange(apiKey, secretKey, passPhrase, takerFee));
 				break;
 			case BITSTAMP:
 				final String userName = exchange.get("username").getAsString();
