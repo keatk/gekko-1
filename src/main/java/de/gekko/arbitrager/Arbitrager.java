@@ -101,13 +101,12 @@ public class Arbitrager {
 	 * @throws IOException
 	 */
 	public void limitOrderArbitrage() {
-		/**
-		 * Wallets werden nur zu Programmstart und nach einem erfolgreichen Trade
-		 * aktualisiert.
-		 */
-		// Wallets aktualisieren
-		updateWallet(exchange1);
-		updateWallet(exchange2);
+		if (updateWallets) {
+			// Wallets aktualisieren
+			updateWallet(exchange1);
+			updateWallet(exchange2);
+			updateWallets = false;
+		}
 
 		// Tickets aktualisieren
 		updateTicker(exchange1);
@@ -152,8 +151,8 @@ public class Arbitrager {
 		// Arbitrage berechnen
 		double tradingFeeExchange1 = askExchange.getTradingFee();
 		double tradingFeeExchange2 = bidExchange.getTradingFee();
-		double arbitragePercentage = calculateArbitragePercentage(priceAskExchange, priceBidExchange, tradingFeeExchange1,
-				tradingFeeExchange2);
+		double arbitragePercentage = calculateArbitragePercentage(priceAskExchange, priceBidExchange,
+				tradingFeeExchange1, tradingFeeExchange2);
 		LOGGER.info("[{} -> {}] Arbitrage: {}", askExchange.toString(), bidExchange.toString(),
 				String.format("%.8f", arbitragePercentage));
 
@@ -288,25 +287,20 @@ public class Arbitrager {
 	 * @param exchange
 	 */
 	void updateWallet(AbstractArbitrageExchange exchange) {
-		if (updateWallets) {
-			LOGGER.info("Updating Wallet for {}", exchange);
+		LOGGER.info("Updating Wallet for {}", exchange);
 
-			// Multi-threaded Implementation
-			Callable<Wallet> callableExchange1Wallets = () -> {
-				return exchange.fetchWallet();
-			};
+		// Multi-threaded Implementation
+		Callable<Wallet> callableExchange1Wallets = () -> {
+			return exchange.fetchWallet();
+		};
 
-			Future<Wallet> futureExchange1Wallets = networkExecutorService.submit(callableExchange1Wallets);
+		Future<Wallet> futureExchange1Wallets = networkExecutorService.submit(callableExchange1Wallets);
 
-			try {
-				exchange.setWallet(futureExchange1Wallets.get());
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
-			// Kontostände wieder aktuell, deswegen false.
-			updateWallets = false;
+		try {
+			exchange.setWallet(futureExchange1Wallets.get());
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 
