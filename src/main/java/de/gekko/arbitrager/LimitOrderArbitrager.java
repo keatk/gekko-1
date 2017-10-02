@@ -65,7 +65,7 @@ public class LimitOrderArbitrager {
 		this.currencyPair = currencyPair;
 
 		/**
-		 * Einmal benötigte Daten können hier erfragt werden.
+		 * Einmal benötigte Daten können hier erfragt und gesetzt werden.
 		 */
 		exchange1.setTradingFee(exchange1.fetchTradingFee(currencyPair));
 		exchange2.setTradingFee(exchange2.fetchTradingFee(currencyPair));
@@ -158,6 +158,9 @@ public class LimitOrderArbitrager {
 
 		// Wenn Arbitrage positiv, führe Trade durch
 		if (arbitragePercentage > 0) {
+			LOGGER.info("");
+			LOGGER.info("FOUND ARBITRAGE OPPORTUNITY");
+			LOGGER.info("");
 			// final double potentialAskAmount =
 			// exchange1Wallet.getBalance(currencyPair.base).getAvailable().doubleValue();
 
