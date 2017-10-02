@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import de.gekko.exchanges.AbstractArbitrageExchange;
 
-public class Arbitrager {
+public class LimitOrderArbitrager {
 
 	/**
 	 * Speichert den Logger.
@@ -58,7 +58,7 @@ public class Arbitrager {
 	 */
 	private boolean updateWallets = true;
 
-	public Arbitrager(AbstractArbitrageExchange exchange1, AbstractArbitrageExchange exchange2,
+	public LimitOrderArbitrager(AbstractArbitrageExchange exchange1, AbstractArbitrageExchange exchange2,
 			CurrencyPair currencyPair) throws IOException {
 		this.exchange1 = exchange1;
 		this.exchange2 = exchange2;

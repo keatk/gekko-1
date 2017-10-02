@@ -9,7 +9,7 @@ import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.exceptions.NotAvailableFromExchangeException;
 import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
-import de.gekko.arbitrager.Arbitrager;
+import de.gekko.arbitrager.LimitOrderArbitrager;
 import de.gekko.exchanges.AbstractArbitrageExchange;
 import de.gekko.io.ResourceManager;
 
@@ -27,18 +27,18 @@ public class Main {
 		 * Lade Exchanges aus Configfile und erstelle Arbitrager entsprechend der
 		 * Anzahl.
 		 */
-		List<Arbitrager> listArbitrager = new ArrayList<>();
+		List<LimitOrderArbitrager> listArbitrager = new ArrayList<>();
 		List<AbstractArbitrageExchange> listExhanges = ResourceManager.loadConfigFile();
 
 		for (int i = 0; i < listExhanges.size() - 1; i++) {
 			for (int j = i + 1; j < listExhanges.size(); j++) {
-				listArbitrager.add(new Arbitrager(listExhanges.get(i), listExhanges.get(j), currencyPair));
+				listArbitrager.add(new LimitOrderArbitrager(listExhanges.get(i), listExhanges.get(j), currencyPair));
 			}
 		}
 
 		while (true) {
 			try {
-				for (Arbitrager arbitrager : listArbitrager) {
+				for (LimitOrderArbitrager arbitrager : listArbitrager) {
 					arbitrager.limitOrderArbitrage();
 
 					Thread.sleep(3000);

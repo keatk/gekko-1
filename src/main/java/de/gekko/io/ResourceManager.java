@@ -123,7 +123,7 @@ public class ResourceManager {
 		final List<AbstractArbitrageExchange> listExchanges = new ArrayList<>();
 		for (int i = 0; i < exchanges.size(); i++) {
 			final JsonObject exchange = exchanges.get(i).getAsJsonObject();
-			
+
 			final ExchangeType type = ExchangeType.valueOf(exchange.get("name").getAsString());
 			final String apiKey = exchange.get("apikey").getAsString();
 			final String secretKey = exchange.get("secretkey").getAsString();
