@@ -17,7 +17,6 @@ public class Main {
 
 	public static void main(String[] args) throws NotAvailableFromExchangeException,
 			NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
-
 		/**
 		 * Hier das derzeitige CurrencyPair eintragen.
 		 */
@@ -28,11 +27,11 @@ public class Main {
 		 * Anzahl.
 		 */
 		List<LimitOrderArbitrager> listArbitrager = new ArrayList<>();
-		List<AbstractArbitrageExchange> listExhanges = ResourceManager.loadConfigFile();
+		List<AbstractArbitrageExchange> listExchanges = ResourceManager.loadConfigFile();
 
-		for (int i = 0; i < listExhanges.size() - 1; i++) {
-			for (int j = i + 1; j < listExhanges.size(); j++) {
-				listArbitrager.add(new LimitOrderArbitrager(listExhanges.get(i), listExhanges.get(j), currencyPair));
+		for (int i = 0; i < listExchanges.size() - 1; i++) {
+			for (int j = i + 1; j < listExchanges.size(); j++) {
+				listArbitrager.add(new LimitOrderArbitrager(listExchanges.get(i), listExchanges.get(j), currencyPair));
 			}
 		}
 

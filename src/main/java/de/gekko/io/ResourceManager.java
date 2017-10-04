@@ -24,11 +24,15 @@ import com.google.gson.JsonParser;
 
 import de.gekko.enums.ExchangeType;
 import de.gekko.exchanges.AbstractArbitrageExchange;
+import de.gekko.exchanges.BTCMarketsArbitrageExchange;
 import de.gekko.exchanges.BitfinexArbitrageExchange;
 import de.gekko.exchanges.BitstampArbitragerExchange;
 import de.gekko.exchanges.BittrexArbitrageExchange;
 import de.gekko.exchanges.CexIOArbitrageExchange;
+import de.gekko.exchanges.CoinfloorArbitrageExchange;
 import de.gekko.exchanges.GDaxArbitragerExchange;
+import de.gekko.exchanges.KrakenArbitrageExchange;
+import de.gekko.exchanges.PoloniexArbitrageExchange;
 import javafx.scene.image.Image;
 
 /**
@@ -149,6 +153,18 @@ public class ResourceManager {
 				final String userId = exchange.get("userid").getAsString();
 				final double takerFeeCexIO = exchange.get("takerfee").getAsDouble();
 				listExchanges.add(new CexIOArbitrageExchange(apiKey, secretKey, userId, takerFeeCexIO));
+				break;
+			case POLONIEX:
+				listExchanges.add(new PoloniexArbitrageExchange(apiKey, secretKey));
+				break;
+			case KRAKEN:
+				listExchanges.add(new KrakenArbitrageExchange(apiKey, secretKey));
+				break;
+			case BTCMARKETS:
+				listExchanges.add(new BTCMarketsArbitrageExchange(apiKey, secretKey));
+				break;
+			case COINFLOOR:
+				listExchanges.add(new CoinfloorArbitrageExchange(apiKey, secretKey));
 				break;
 			default:
 				break;
