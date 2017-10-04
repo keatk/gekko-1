@@ -165,6 +165,7 @@ public class ResourceManager {
 				break;
 			case COINFLOOR:
 				listExchanges.add(new CoinfloorArbitrageExchange(apiKey, secretKey));
+				break;
 			default:
 				break;
 			}
