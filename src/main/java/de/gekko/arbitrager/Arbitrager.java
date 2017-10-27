@@ -166,28 +166,12 @@ public class Arbitrager {
 			IOException {
 		LOGGER.info("Checking for Arbitrage opportunity...");
 
-		// Den besten Ask auf Exchange 1 abrufen
-		// double exchange1Ask = 0;
-		// double exchange1Amount = 0;
-		// for (LimitOrder limitOrder : orderBook1.getAsks()) {
-		// exchange1Ask = limitOrder.getLimitPrice().doubleValue();
-		// exchange1Amount = limitOrder.getTradableAmount().doubleValue();
-		// break;
-		// }
 		/**
 		 * Ausdrücke sollte den Block oben ersetzen. Benennung präzisiert.
 		 */
 		double priceAskExchange = askExchangeOrderBook.getAsks().get(0).getLimitPrice().doubleValue();
-		double amountAskExchange = bidExchangeOrderBook.getAsks().get(0).getTradableAmount().doubleValue();
+		double amountAskExchange = bidExchangeOrderBook.getAsks().get(0).getRemainingAmount().doubleValue();
 
-		// Den besten Bid auf Exchange 2 abrufen
-		// double exchange2Bid = 0;
-		// double exchange2Amount = 0;
-		// for (LimitOrder limitOrder : orderBook2.getBids()) {
-		// exchange2Bid = limitOrder.getLimitPrice().doubleValue();
-		// exchange2Amount = limitOrder.getTradableAmount().doubleValue();
-		// break;
-		// }
 		/**
 		 * Ausdrücke sollte den Block oben ersetzen. Benennung präzisiert.
 		 */
@@ -375,49 +359,6 @@ public class Arbitrager {
 			updateWallets = false;
 		}
 
-		// // Kontostände abrufen
-		// double exchange1BaseUpdated = exchange1.getBalance(currencyPair.base);
-		// double exchange1CounterUpdated = exchange1.getBalance(currencyPair.counter);
-		// double exchange2BaseUpdated = exchange2.getBalance(currencyPair.base);
-		// double exchange2CounterUpdated = exchange2.getBalance(currencyPair.counter);
-		//
-		// double totalBase = exchange1BaseAmount + exchange2BaseAmount;
-		// double totalCounter = exchange1CounterAmount + exchange2CounterAmount;
-		//
-		// // Logging bzw. Printing der Veränderungen und aktuellen Kontostände.
-		// LOGGER.info("{}: {} = {} | {} = {}", exchange1.toString(), currencyPair.base,
-		// String.format("%.8f", exchange1BaseUpdated), currencyPair.counter,
-		// String.format("%.8f", exchange1CounterUpdated));
-		// LOGGER.info("{}: {} = {} | {} = {}", exchange2.toString(), currencyPair.base,
-		// String.format("%.8f", exchange2BaseUpdated), currencyPair.counter,
-		// String.format("%.8f", exchange2CounterUpdated));
-		//
-		// if (startup) {
-		// LOGGER.info("Total: {} = {} | {} = {}", currencyPair.base.toString(),
-		// totalBase,
-		// currencyPair.counter.toString(), totalCounter);
-		// startUpBase = totalBase;
-		// startUpCounter = totalCounter;
-		// startup = false;
-		// } else {
-		// LOGGER.info("Total: {} = {} ({}) {} = {} ({})", currencyPair.base, totalBase,
-		// String.format("%.8f", (totalBase - this.totalBase)), currencyPair.counter,
-		// totalCounter,
-		// String.format("%.8f", ((totalCounter - this.totalCounter))));
-		// LOGGER.info("Profit since Start: ETH = {}, LTC = {}", String.format("%.8f",
-		// ((totalBase - startUpBase))),
-		// String.format("%.8f", ((totalCounter - startUpCounter))));
-		// }
-		//
-		// // Klassenvariablen des Arbitragers updaten.
-		// this.exchange1BaseAmount = exchange1BaseUpdated;
-		// this.exchange1CounterAmount = exchange1CounterUpdated;
-		// this.exchange2BaseAmount = exchange2BaseUpdated;
-		// this.exchange2CounterAmount = exchange2CounterUpdated;
-		// this.totalBase = totalBase;
-		// this.totalCounter = totalCounter;
-		// // Kontostände wieder aktuell, deswegen false.
-		// balanceChanged = false;
 	}
 
 }

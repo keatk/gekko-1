@@ -41,7 +41,7 @@ public abstract class AbstractArbitrageExchange {
 	/**
 	 * Speichert die Anzahl Nachkommastellen die bei Trades erlaubt sind.
 	 */
-	private int decimals;
+	private int decimals = 8;
 
 	/**
 	 * Speichert den Exchange.
@@ -196,11 +196,11 @@ public abstract class AbstractArbitrageExchange {
 	public String placeLimitOrderBid(CurrencyPair currencyPair, double bidPrice, double bidAmount)
 			throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException,
 			IOException {
-		BigDecimal askPrice = BigDecimal.valueOf(bidPrice).setScale(decimals, BigDecimal.ROUND_HALF_UP);
-		BigDecimal askAmount = BigDecimal.valueOf(bidAmount).setScale(decimals, BigDecimal.ROUND_HALF_UP);
+		BigDecimal bidPrice_D = BigDecimal.valueOf(bidPrice).setScale(decimals, BigDecimal.ROUND_HALF_UP);
+		BigDecimal bidAmount_D = BigDecimal.valueOf(bidAmount).setScale(decimals, BigDecimal.ROUND_HALF_UP);
 
-		LimitOrder limitOrder = new LimitOrder.Builder(OrderType.BID, currencyPair).limitPrice(askPrice)
-				.tradableAmount(askAmount).build();
+		LimitOrder limitOrder = new LimitOrder.Builder(OrderType.BID, currencyPair).limitPrice(bidPrice_D)
+				.tradableAmount(bidAmount_D).build();
 		return tradeService.placeLimitOrder(limitOrder);
 	}
 
