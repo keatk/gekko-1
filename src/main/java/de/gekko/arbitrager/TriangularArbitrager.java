@@ -395,15 +395,15 @@ public class TriangularArbitrager {
 
 		// Multi-threaded Implementation
 		Callable<OrderBook> callable_Orderbook1 = () -> {
-			return exchange.getOrderbook(basePair);
+			return exchange.fetchOrderbook(basePair);
 		};
 
 		Callable<OrderBook> callable_Orderbook2 = () -> {
-			return exchange.getOrderbook(crossPair1);
+			return exchange.fetchOrderbook(crossPair1);
 		};
 		
 		Callable<OrderBook> callable_Orderbook3 = () -> {
-			return exchange.getOrderbook(crossPair2);
+			return exchange.fetchOrderbook(crossPair2);
 		};
 
 		Future<OrderBook> future_Orderbook1 = networkExecutorService.submit(callable_Orderbook1);
@@ -441,7 +441,7 @@ public class TriangularArbitrager {
 		if (updateWallets) {
 			LOGGER.info("Updating Balances...");
 
-			exchangeWallet = exchange.getWallets();
+			exchangeWallet = exchange.fetchWallet();
 			
 			for(Currency currency : getCurrencySet()){
 				double currencyBalance = exchangeWallet.getBalance(currency).getAvailable().doubleValue();
