@@ -11,9 +11,14 @@ public class BitstampArbitragerExchange extends AbstractArbitrageExchange {
 		exchangeSpecification.setUserName(userName);
 		exchangeSpecification.setApiKey(apiKey);
 		exchangeSpecification.setSecretKey(secretKey);
-		exchange = ExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
+		setExchange(ExchangeFactory.INSTANCE.createExchange(exchangeSpecification));
 
 		initServices();
 	}
+	
+	/**
+	 * Hier können fetch-Methoden überschrieben werden, falls ein Exchange anders
+	 * behandelt werden muss.
+	 */
 
 }
