@@ -28,8 +28,8 @@ import de.gekko.exchanges.AbstractArbitrageExchange;
 
 public class TriangularArbitrager {
 	
-	int arbitCounter = 0;
-	boolean debug = true;
+	private int arbitCounter = 0;
+	private boolean debug = true;
 	
 	/**
 	 * Speichert den Logger.
@@ -187,7 +187,7 @@ public class TriangularArbitrager {
 		if(triangularArbitrage2()){
 			arbitCounter++;
 		}
-		System.out.println("# Arbitrage Chances: " + arbitCounter);
+		LOGGER.info("Numer of Arbitrage Chances: {}", arbitCounter);
 	}
 	
 	/**
@@ -200,7 +200,7 @@ public class TriangularArbitrager {
 	 * @throws InterruptedException
 	 */
 	public boolean triangularArbitrage1() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
-		// Return value
+		// Return value for couting arbitrage chances
 		boolean ret = false;
 		// Get bids and asks
 		double currencyPair1Price = orderbook1.getBids().get(0).getLimitPrice().doubleValue();
@@ -232,13 +232,47 @@ public class TriangularArbitrager {
 		
 		if(debug){
 			// Simulated trading for debugging and testing
+			LOGGER.info("=== DEBUG TRADE #1 ===");
 			double tradeAmount = 1;
-			System.out.println("Sell ETH: " + String.format("%.8f",tradeAmount) + " for BTC: " + String.format("%.8f", tradeAmount*currencyPair1Price));
-			System.out.println("Sell NEO: " + String.format("%.8f", (tradeAmount*currencyPair1Price)/currencyPair3Price) + " for ETH: " + String.format("%.8f",((tradeAmount*currencyPair1Price)/currencyPair3Price)*currencyPair2Price));
-			System.out.println("Sell BTC: " + String.format("%.8f", tradeAmount*currencyPair1Price) + " for NEO: " + String.format("%.8f",(tradeAmount*currencyPair1Price)/currencyPair3Price));
+			// Base pair
+			double sellBasePair = tradeAmount;
+			double buyBasePair = tradeAmount*currencyPair1Price;
+			LOGGER.info("Sell {}: {} for {}: {}", basePair.base, formatDecimals(sellBasePair), basePair.counter, formatDecimals(buyBasePair));
+			
+			// Cross pair 1
+			double sellCrossPair1;
+			double buyCrossPair1;
+			if(twistCrossPair1) {
+				sellCrossPair1 = (tradeAmount*currencyPair1Price)/currencyPair3Price;
+				buyCrossPair1 = ((tradeAmount*currencyPair1Price)/currencyPair3Price)*currencyPair2Price;
+				LOGGER.info("Sell {}: {} for {}: {}", crossPair1.base, formatDecimals(sellCrossPair1), crossPair1.counter, formatDecimals(buyCrossPair1));
+			} else {
+				//TODO
+				sellCrossPair1 = tradeAmount/currencyPair3Price;
+				buyCrossPair1 = (tradeAmount/currencyPair3Price)*currencyPair2Price;
+				LOGGER.info("Sell {}: {} for {}: {}", crossPair1.counter, formatDecimals(sellCrossPair1), crossPair1.base, formatDecimals(buyCrossPair1));
+			}
+
+			// Cross pair 2
+			double sellCrossPair2;
+			double buyCrossPair2;
+			if(twistCrossPair2) {
+				//TODO
+				sellCrossPair2 = tradeAmount*currencyPair1Price;
+				buyCrossPair2 = (tradeAmount*currencyPair1Price)/currencyPair3Price;
+				LOGGER.info("Sell {}: {} for {}: {}", crossPair2.base, formatDecimals(sellCrossPair2), crossPair2.counter, formatDecimals(buyCrossPair2));
+			} else {
+				sellCrossPair2 = tradeAmount*currencyPair1Price;
+				buyCrossPair2 = (tradeAmount*currencyPair1Price)/currencyPair3Price;
+				LOGGER.info("Sell {}: {} for {}: {}", crossPair2.counter, formatDecimals(sellCrossPair2), crossPair2.base, formatDecimals(buyCrossPair2));
+			}
+			LOGGER.info("DEBUG ARBITRAGE = {}", (buyCrossPair1/sellBasePair -1)*100);
+
+			// if arbitrage chance exists set return value to true
 			if ((arb - 0.75) > 0) {
 				ret = true;
 			}
+			
 		} else {
 			if ((arb - 0.75) > 0) {
 				System.out.println("=====> Arbitrage (with fees): " + String.format("%.8f", arb - 0.75));
@@ -285,7 +319,7 @@ public class TriangularArbitrager {
 					System.exit(1);
 				}
 				ret = true;
-				}
+			}
 		}
 		return ret;
 	}
@@ -320,14 +354,51 @@ public class TriangularArbitrager {
 		LOGGER.info("ASK: {} [{}/{}] -- BID: {} [X {}/{}] -- ARBITRAGE = {}", currencyPair1Price, basePair.base.toString(), basePair.counter.toString(), String.format("%.8f", crossExchangeRate), crossPair1.counter.toString(), crossPair2.counter.toString(), arb);
 
 		if(debug){
+			// Simulated trading for debugging and testing
+			LOGGER.info("=== DEBUG TRADE #2 ===");
 			double tradeAmount = 1;
-			System.out.println("===== Trade 1 =====");
-			System.out.println("sell BTC: " + String.format("%.8f", tradeAmount*currencyPair1Price) + " for ETH: " + String.format("%.8f", tradeAmount));
-			System.out.println("Sell ETH: " + String.format("%.8f", tradeAmount) + " for NEO: " + String.format("%.8f", tradeAmount/currencyPair2Price));
-			System.out.println("Sell NEO: " + String.format("%.8f", tradeAmount/currencyPair2Price) + " for BTC: " + String.format("%.8f",(tradeAmount/currencyPair2Price)*currencyPair3Price));
+			// Base pair
+			double sellBasePair = tradeAmount*currencyPair1Price;
+			double buyBasePair = tradeAmount;
+			LOGGER.info("Sell {}: {} for {}: {}", basePair.counter, formatDecimals(sellBasePair), basePair.base, formatDecimals(buyBasePair));
+			
+			// Cross pair 1
+			double sellCrossPair1;
+			double buyCrossPair1;
+			if(twistCrossPair1) {
+				sellCrossPair1 = tradeAmount;
+				buyCrossPair1 = tradeAmount/currencyPair2Price;
+				LOGGER.info("Sell {}: {} for {}: {}", crossPair1.counter, formatDecimals(sellCrossPair1), crossPair1.base, formatDecimals(buyCrossPair1));
+			} else {
+				//TODO
+				sellCrossPair1 = (tradeAmount*currencyPair1Price)/currencyPair3Price;
+				buyCrossPair1 = ((tradeAmount*currencyPair1Price)/currencyPair3Price)*currencyPair2Price;
+				LOGGER.info("Sell {}: {} for {}: {}", crossPair1.counter, formatDecimals(sellCrossPair1), crossPair1.base, formatDecimals(buyCrossPair1));
+			}
+
+			// Cross pair 2
+			double sellCrossPair2;
+			double buyCrossPair2;
+			if(twistCrossPair2) {
+				//TODO
+				sellCrossPair2 = tradeAmount*currencyPair1Price;
+				buyCrossPair2 = (tradeAmount*currencyPair1Price)/currencyPair3Price;
+				LOGGER.info("Sell {}: {} for {}: {}", crossPair2.base, formatDecimals(sellCrossPair2), crossPair2.counter, formatDecimals(buyCrossPair2));
+			} else {
+				sellCrossPair2 = tradeAmount/currencyPair2Price;
+				buyCrossPair2 = (tradeAmount/currencyPair2Price)*currencyPair3Price;
+				LOGGER.info("Sell {}: {} for {}: {}", crossPair2.base, formatDecimals(sellCrossPair2), crossPair2.counter, formatDecimals(buyCrossPair2));
+			}
+			LOGGER.info("DEBUG ARBITRAGE = {}", (buyCrossPair2/sellBasePair -1)*100);
+//			System.out.println("===== Trade 2 =====");
+//			System.out.println("sell BTC: " + String.format("%.8f", tradeAmount*currencyPair1Price) + " for ETH: " + String.format("%.8f", tradeAmount));
+//			System.out.println("Sell ETH: " + String.format("%.8f", tradeAmount) + " for NEO: " + String.format("%.8f", tradeAmount/currencyPair2Price));
+//			System.out.println("Sell NEO: " + String.format("%.8f", tradeAmount/currencyPair2Price) + " for BTC: " + String.format("%.8f",(tradeAmount/currencyPair2Price)*currencyPair3Price));
+//			
 			if((arb - 0.75) > 0) {
 				ret = true;
 			}
+			
 		} else {
 		
 		if((arb - 0.75) > 0) {
@@ -470,5 +541,9 @@ public class TriangularArbitrager {
 		currencies.add(crossPair2.base);
 		currencies.add(crossPair2.counter);
 		return currencies;
+	}
+	
+	public String formatDecimals(double doubleVal) {
+		return String.format("%." + exchange.getDecimals() + "f", doubleVal);
 	}
 }
