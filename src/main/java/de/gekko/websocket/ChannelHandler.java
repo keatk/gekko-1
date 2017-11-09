@@ -1,6 +1,8 @@
 package de.gekko.websocket;
 
 import java.math.BigDecimal;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
@@ -176,13 +178,12 @@ public class ChannelHandler {
         heartbeat = System.currentTimeMillis();
         syncTimestamp = new Date();
     }
-    //subscriber.receiveUpdate(new OrderBookUpdate(currencyPair, getOrderBook())))
-	public void broadcast() {
+	
+    public void broadcast() {
 		if(!subscribers.isEmpty()) {
 			broadcastExecutorService = Executors.newFixedThreadPool(subscribers.size());
 			subscribers.forEach(subscriber -> broadcastExecutorService.submit(
 					() -> {subscriber.receiveUpdate(new OrderBookUpdate(currencyPair, getOrderBook()));
-					System.out.println("broadcasted...");
 					}));
 			broadcastExecutorService.shutdown();
 		}
@@ -197,7 +198,8 @@ public class ChannelHandler {
         }
         
 //        synchronized (this) {
-            orderBook = new org.knowm.xchange.dto.marketdata.OrderBook(null , new ArrayList<>(asks.values()), new ArrayList<>(bids.values()));
+
+            orderBook = new org.knowm.xchange.dto.marketdata.OrderBook(new Date(), new ArrayList<>(asks.values()), new ArrayList<>(bids.values()));
             
 //            checkConsistency(orderBook);
             return orderBook;

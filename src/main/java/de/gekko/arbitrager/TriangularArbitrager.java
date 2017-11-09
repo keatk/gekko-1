@@ -38,9 +38,10 @@ public class TriangularArbitrager {
 	 * Speichert die Exchange
 	 */
 	private AbstractArbitrageExchange exchange;
-	private OrderBook orderbook1;
-	private OrderBook orderbook2;
-	private OrderBook orderbook3;
+
+	private OrderBook orderBook1;
+	private OrderBook orderBook2;
+	private OrderBook orderBook3;
 	private Wallet exchangeWallet;
 	
 	/**
@@ -178,11 +179,11 @@ public class TriangularArbitrager {
 	public void triangularArbitrage() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
 		updateOrderbooks();
 		
-		if(triangularArbitrage1()){
+		if(triangularArbitrage1(orderBook1, orderBook2, orderBook3)){
 			updateOrderbooks();
 			arbitCounter++;
 		}
-		if(triangularArbitrage2()){
+		if(triangularArbitrage2(orderBook1, orderBook2, orderBook3)){
 			arbitCounter++;
 		}
 		LOGGER.info("Numer of Arbitrage Chances: {}", arbitCounter);
@@ -197,22 +198,22 @@ public class TriangularArbitrager {
 	 * @throws IOException
 	 * @throws InterruptedException
 	 */
-	public boolean triangularArbitrage1() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
+	public boolean triangularArbitrage1(OrderBook baseOrderBook, OrderBook cross1Orderbook, OrderBook cross2Orderbook) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
 		// Return value for couting arbitrage chances
 		boolean ret = false;
 		// Get bids and asks
-		double basePairPrice = orderbook1.getBids().get(0).getLimitPrice().doubleValue();
+		double basePairPrice = baseOrderBook.getBids().get(0).getLimitPrice().doubleValue();
 		double crossPair1Price;
 		double crossPair2Price;
 		if(twistCrossPair1){
-			crossPair1Price = orderbook2.getBids().get(0).getLimitPrice().doubleValue();
+			crossPair1Price = cross1Orderbook.getBids().get(0).getLimitPrice().doubleValue();
 		} else {
-			crossPair1Price = orderbook2.getAsks().get(0).getLimitPrice().doubleValue();
+			crossPair1Price = cross1Orderbook.getAsks().get(0).getLimitPrice().doubleValue();
 		}
 		if(twistCrossPair2){
-			crossPair2Price = orderbook3.getBids().get(0).getLimitPrice().doubleValue();
+			crossPair2Price = cross2Orderbook.getBids().get(0).getLimitPrice().doubleValue();
 		} else {
-			crossPair2Price = orderbook3.getAsks().get(0).getLimitPrice().doubleValue();
+			crossPair2Price = cross2Orderbook.getAsks().get(0).getLimitPrice().doubleValue();
 		}
 
 		// Calculate cross exchangerate and arbitrage
@@ -343,22 +344,22 @@ public class TriangularArbitrager {
 		return ret;
 	}
 	
-	public boolean triangularArbitrage2() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
+	public boolean triangularArbitrage2(OrderBook baseOrderBook, OrderBook cross1Orderbook, OrderBook cross2Orderbook) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
 		// Return value
 		boolean ret = false;
 		
-		double currencyPair1Price = orderbook1.getAsks().get(0).getLimitPrice().doubleValue();
+		double currencyPair1Price = baseOrderBook.getAsks().get(0).getLimitPrice().doubleValue();
 		double currencyPair2Price;
 		double currencyPair3Price;
 		if(twistCrossPair1){
-			currencyPair2Price = orderbook2.getAsks().get(0).getLimitPrice().doubleValue();
+			currencyPair2Price = cross1Orderbook.getAsks().get(0).getLimitPrice().doubleValue();
 		} else {
-			currencyPair2Price = orderbook2.getBids().get(0).getLimitPrice().doubleValue();
+			currencyPair2Price = cross1Orderbook.getBids().get(0).getLimitPrice().doubleValue();
 		}
 		if(twistCrossPair1){
-			currencyPair3Price = orderbook3.getAsks().get(0).getLimitPrice().doubleValue();
+			currencyPair3Price = cross2Orderbook.getAsks().get(0).getLimitPrice().doubleValue();
 		} else {
-			currencyPair3Price = orderbook3.getBids().get(0).getLimitPrice().doubleValue();
+			currencyPair3Price = cross2Orderbook.getBids().get(0).getLimitPrice().doubleValue();
 		}
 		
 		// Calculate cross exchangerate and arbitrage
@@ -496,13 +497,13 @@ public class TriangularArbitrager {
 		Future<OrderBook> future_Orderbook3 = networkExecutorService.submit(callable_Orderbook3);
 
 		try {
-			orderbook1 = future_Orderbook1.get();
+			orderBook1 = future_Orderbook1.get();
 //			LOGGER.info("[{}] Orderbook: ask = {}", exchange1, exchange1Orderbook.getAsks().get(0));
 //			LOGGER.info("[{}] Orderbook: bid = {}", exchange1, exchange1Orderbook.getBids().get(0));
-			orderbook2 = future_Orderbook2.get();
+			orderBook2 = future_Orderbook2.get();
 //			LOGGER.info("[{}] Orderbook: ask = {}", exchange2, exchange2Orderbook.getAsks().get(0));
 //			LOGGER.info("[{}] Orderbook: bid = {}", exchange2, exchange2Orderbook.getBids().get(0));
-			orderbook3 = future_Orderbook3.get();
+			orderBook3 = future_Orderbook3.get();
 
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
@@ -563,6 +564,18 @@ public class TriangularArbitrager {
 		currencyPairs.add(crossPair1);
 		currencyPairs.add(crossPair2);
 		return currencyPairs;		
+	}
+	
+	public CurrencyPair getBasePair() {
+		return basePair;
+	}
+
+	public CurrencyPair getCrossPair1() {
+		return crossPair1;
+	}
+
+	public CurrencyPair getCrossPair2() {
+		return crossPair2;
 	}
 	
 	public String formatDecimals(double doubleVal) {
