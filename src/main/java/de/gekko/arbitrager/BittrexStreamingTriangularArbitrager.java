@@ -103,7 +103,6 @@ public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager i
 			if(orderBooks.containsKey(getBasePair()) && orderBooks.containsKey(getCrossPair1()) && orderBooks.containsKey(getCrossPair2())) {
 				try {
 					if(triangularArbitrage1(orderBooks.get(getBasePair()), orderBooks.get(getCrossPair1()), orderBooks.get(getCrossPair2()))){
-						updateOrderbooks();
 						arbitCounter++;
 					}
 					if(triangularArbitrage2(orderBooks.get(getBasePair()), orderBooks.get(getCrossPair1()), orderBooks.get(getCrossPair2()))){
