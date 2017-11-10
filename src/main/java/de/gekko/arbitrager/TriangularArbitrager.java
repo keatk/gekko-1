@@ -72,8 +72,8 @@ public class TriangularArbitrager {
 		alignCurrencyPairs();
 
 		updateWallet();
-		System.out.println(twistCrossPair1);
-		System.out.println(twistCrossPair2);
+//		System.out.println(twistCrossPair1);
+//		System.out.println(twistCrossPair2);
 
 	}
 

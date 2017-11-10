@@ -113,7 +113,7 @@ public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager i
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				LOGGER.info("Numer of Arbitrage Chances: {}", arbitCounter);
+				LOGGER.info("Number of Arbitrage Chances: {}", arbitCounter);
 			}
 		}
 	}
