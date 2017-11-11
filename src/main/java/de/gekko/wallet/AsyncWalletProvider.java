@@ -30,10 +30,10 @@ public class AsyncWalletProvider implements Runnable {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(AsyncWalletProvider.class);
 	private final BinarySemaphore walletUpdateSemaphore = new BinarySemaphore(true);
-	private AbstractArbitrageExchange exchange;
-	private Map<Currency, Double> balances;
+	private final Lock balanceLock = new ReentrantLock();
+	private final AbstractArbitrageExchange exchange;
+	private Map<Currency, Double> balances = new HashMap<>();
 	private Map<Currency, Double> startupBalances;
-	private Lock balanceLock = new ReentrantLock();
 	private boolean stop = false;
 	private boolean active = false;
 	private boolean startup = true;
@@ -103,14 +103,14 @@ public class AsyncWalletProvider implements Runnable {
 				updateBalances(wallet);
 			}
 			
-			// Logging / printing wallet info
-			info();
-			
 			// set startup balances
 			if(startup) {
 				startupBalances = balances;
 				startup = false;
 			}
+			
+			// Logging / printing wallet info
+			info();
 		}
 		active = false;
 	}
@@ -199,9 +199,11 @@ public class AsyncWalletProvider implements Runnable {
 	}
 	
 	/**
-	 * Forces the AsyncWalletProvider to update its state.
+	 * Forces the AsyncWalletProvider to update its state immediately. 
+	 * WARNING: Ignores safety measures intended to prevent running into API limit.
 	 */
 	public void forceUpdate() {
+		lastUpdated = 0;
 		walletUpdateSemaphore.release();
 	}
 	
