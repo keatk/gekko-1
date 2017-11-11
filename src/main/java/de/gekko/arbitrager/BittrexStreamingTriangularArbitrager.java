@@ -26,17 +26,22 @@ import de.gekko.websocket.BittrexWebsocket;
 import de.gekko.websocket.OrderBookUpdate;
 import de.gekko.websocket.Updateable;
 
-
+/**
+ * Class that performs triangular arbitrage (aka. inter market arbitrage) on the Bittrex exchange.
+ * Uses websockets and multithreading to achieve fast response times.
+ * @author Maximilian Pfister
+ *
+ */
 public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager implements Runnable, Updateable {
 	
-	private static final Logger LOGGER = LoggerFactory.getLogger("Arbitrager");
+	private static final Logger LOGGER = LoggerFactory.getLogger(BittrexStreamingTriangularArbitrager.class);
 	
 	private boolean stop = false;
 	private final BinarySemaphore processUpdateSem = new BinarySemaphore(false);
 	Map<CurrencyPair, PriorityQueue<OrderBook>> orderBookQueues = new HashMap<>();	
 	Map<CurrencyPair, ReentrantLock> locks = new HashMap<>();
 
-	public BittrexStreamingTriangularArbitrager(BittrexArbitrageExchange exchange, CurrencyPair basePair,
+	private BittrexStreamingTriangularArbitrager(BittrexArbitrageExchange exchange, CurrencyPair basePair,
 			CurrencyPair crossPair1, CurrencyPair crossPair2) throws IOException, CurrencyMismatchException {
 		super(exchange, basePair, crossPair1, crossPair2);
 		
@@ -84,9 +89,8 @@ public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager i
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			// lock access to queues for thread safe clearing
-			//locks.values().forEach(lock -> lock.lock()); //TODO fein granulareres locking
 			orderBookQueues.forEach((currencyPair, queue) -> {
+				// lock access to queue for thread safe clearing
 				locks.get(currencyPair).lock();
 				// if update is available
 				if(queue.peek() != null) {
@@ -95,10 +99,9 @@ public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager i
 					// clear queue because older updates are irrelevant
 					queue.clear();
 				}
+				// editing queue done, release lock
 				locks.get(currencyPair).unlock();
 			});
-			// editing queues done, release locks
-			//locks.values().forEach(lock -> lock.unlock()); //TODO fein granulareres locking
 			
 			if(orderBooks.containsKey(getBasePair()) && orderBooks.containsKey(getCrossPair1()) && orderBooks.containsKey(getCrossPair2())) {
 				try {
@@ -131,6 +134,24 @@ public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager i
 		locks.get(orderBookUpdate.getCurrencyPair()).unlock();
 		// release update semaphore to start processing updates in processor thread
 		processUpdateSem.release();
+	}
+	
+	/**
+	 * Static factory method that creates an BittrexStreamingTriangularArbitrager instance and runs it in a new thread.
+	 * @param exchange
+	 * @param basePair
+	 * @param crossPair1
+	 * @param crossPair2
+	 * @return
+	 * @throws IOException
+	 * @throws CurrencyMismatchException
+	 */
+	public static BittrexStreamingTriangularArbitrager createInstance(BittrexArbitrageExchange exchange, CurrencyPair basePair,
+			CurrencyPair crossPair1, CurrencyPair crossPair2) throws IOException, CurrencyMismatchException {
+		BittrexStreamingTriangularArbitrager arbitrager = new BittrexStreamingTriangularArbitrager(exchange, basePair, crossPair1, crossPair2);
+		Thread thread = new Thread(arbitrager);
+		thread.start();
+		return arbitrager;
 	}
 
 }

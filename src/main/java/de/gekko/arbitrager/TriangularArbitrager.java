@@ -24,6 +24,11 @@ import org.slf4j.LoggerFactory;
 import de.gekko.exception.CurrencyMismatchException;
 import de.gekko.exchanges.AbstractArbitrageExchange;
 
+/**
+ * Class that performs triangular arbitrage (aka. inter market arbitrage).
+ * @author Maximilian Pfister
+ *
+ */
 public class TriangularArbitrager {
 	
 	private int arbitCounter = 0;

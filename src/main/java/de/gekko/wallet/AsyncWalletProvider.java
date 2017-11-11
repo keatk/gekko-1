@@ -1,6 +1,7 @@
 package de.gekko.wallet;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -28,12 +29,14 @@ import de.gekko.exchanges.AbstractArbitrageExchange;
 public class AsyncWalletProvider implements Runnable {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(AsyncWalletProvider.class);
-	private final BinarySemaphore walletUpdateSemaphore = new BinarySemaphore(false);
+	private final BinarySemaphore walletUpdateSemaphore = new BinarySemaphore(true);
 	private AbstractArbitrageExchange exchange;
 	private Map<Currency, Double> balances;
+	private Map<Currency, Double> startupBalances;
 	private Lock balanceLock = new ReentrantLock();
 	private boolean stop = false;
-	private long updateInterval = 1; //seconds
+	private boolean startup = true;
+	private long updateInterval = 10; //seconds
 	
 	private AsyncWalletProvider(AbstractArbitrageExchange exchange) {
 		this.exchange = exchange;
@@ -80,6 +83,12 @@ public class AsyncWalletProvider implements Runnable {
 			// update local wallet image
 			if(wallet != null) {
 				updateBalances(wallet);
+			}
+			info();
+			
+			if(startup) {
+				startupBalances = balances;
+				startup = false;
 			}
 		}
 
@@ -159,18 +168,40 @@ public class AsyncWalletProvider implements Runnable {
 	}
 	
 	/**
-	 * Prints/logs the current wallet state and profits.
+	 * Prints/logs the current wallet state and deltas.
 	 */
 	public void info() {
-		
+		LOGGER.info("----- Wallet {} -----", exchange);
+		 Map<Currency, Double> deltas = getStartupDeltas();
+		balances.forEach((currency, balance) -> {
+			String deltaString;
+			if(deltas.get(currency) > 0) {
+				deltaString = "+" + deltas.get(currency);
+			} else {
+				deltaString = "" + deltas.get(currency);
+			}
+			LOGGER.info("[{}] = {} ({}) ", currency, balance, deltaString);
+		});		
 	}
 	
 	/**
-	 * Gets profits since startup of this AsyncWalletProvider.
+	 * Gets profits/losses since startup of this AsyncWalletProvider.
 	 * @return
 	 */
-	public Map<Currency, Double> getProfits(){
-		return null;
+	public Map<Currency, Double> getStartupDeltas(){
+		Map<Currency, Double> deltas = new HashMap<>();
+		//balanceLock.lock();
+		balances.forEach((currency, balance) -> {
+			if(startupBalances.containsKey(currency)) {
+				deltas.put(currency, balance - startupBalances.get(currency));
+			} else {
+				// detected new currency
+				deltas.put(currency, 0.d);
+				startupBalances.put(currency, balance);
+			}
+		});
+		//balanceLock.unlock();
+		return deltas;
 	}
 
 }

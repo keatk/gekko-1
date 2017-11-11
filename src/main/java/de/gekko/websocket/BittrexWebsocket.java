@@ -22,7 +22,14 @@ import org.knowm.xchange.currency.CurrencyPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
+/**
+ * Credits: Originally developed by André Reiter (https://github.com/andre77/bittrex-ws-java).
+ * 
+ * Modified to work with the xChange framework and arbitrager classes.
+ * Arbitragers can register as subscribers to receive orderbook updates. 
+ * @author Maximilian Pfister
+ *
+ */
 public class BittrexWebsocket {
 
     private static final Logger LOG = LoggerFactory.getLogger(BittrexWebsocket.class);
