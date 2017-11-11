@@ -37,6 +37,7 @@ public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager i
 	private static final Logger LOGGER = LoggerFactory.getLogger(BittrexStreamingTriangularArbitrager.class);
 	
 	private boolean stop = false;
+	private boolean active = false;
 	private final BinarySemaphore processUpdateSem = new BinarySemaphore(false);
 	Map<CurrencyPair, PriorityQueue<OrderBook>> orderBookQueues = new HashMap<>();	
 	Map<CurrencyPair, ReentrantLock> locks = new HashMap<>();
@@ -78,6 +79,7 @@ public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager i
 	 */
 	@Override
 	public void run() {
+		active = true;
 		Map<CurrencyPair, OrderBook> orderBooks = new HashMap<>();
 		int arbitCounter = 0;
 		
@@ -119,6 +121,7 @@ public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager i
 				LOGGER.info("Number of Arbitrage Chances: {}", arbitCounter);
 			}
 		}
+		active = false;
 	}
 	
 	/**
@@ -126,11 +129,11 @@ public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager i
 	 */
 	@Override
 	public void receiveUpdate(OrderBookUpdate orderBookUpdate) {
-		// aquire lock for specific orderbook
+		// acquire lock for specific orderbook
 		locks.get(orderBookUpdate.getCurrencyPair()).lock();
 		// push updated orderbook onto queue
 		orderBookQueues.get(orderBookUpdate.getCurrencyPair()).add(orderBookUpdate.getOrderBook());
-		// release the aquired lock
+		// release the acquired lock
 		locks.get(orderBookUpdate.getCurrencyPair()).unlock();
 		// release update semaphore to start processing updates in processor thread
 		processUpdateSem.release();
@@ -152,6 +155,23 @@ public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager i
 		Thread thread = new Thread(arbitrager);
 		thread.start();
 		return arbitrager;
+	}
+	
+	/**
+	 * Launches arbitrage thread.
+	 */
+	public void start() {
+		if(!active) {
+			Thread thread = new Thread(this);
+			thread.start();
+		}
+	}
+	
+	/**
+	 * Halts arbitrage thread.
+	 */
+	public void stop() {
+		stop = true;
 	}
 
 }

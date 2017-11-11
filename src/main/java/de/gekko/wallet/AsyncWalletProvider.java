@@ -35,6 +35,7 @@ public class AsyncWalletProvider implements Runnable {
 	private Map<Currency, Double> startupBalances;
 	private Lock balanceLock = new ReentrantLock();
 	private boolean stop = false;
+	private boolean active = false;
 	private boolean startup = true;
 	private long updateInterval = 10; //seconds
 	
@@ -47,6 +48,7 @@ public class AsyncWalletProvider implements Runnable {
 	 */
 	@Override
 	public void run() {
+		active = true;
 		// executor service for update interval thread
 		ExecutorService signalUpdateService = Executors.newFixedThreadPool(1);
 		
@@ -91,7 +93,7 @@ public class AsyncWalletProvider implements Runnable {
 				startup = false;
 			}
 		}
-
+		active = false;
 	}
 	
 	/**
@@ -158,6 +160,16 @@ public class AsyncWalletProvider implements Runnable {
 		Thread thread = new Thread(ret);
 		thread.start();
 		return ret;
+	}
+	
+	/**
+	 * Launches update thread.
+	 */
+	public void start() {
+		if(!active) {
+			Thread thread = new Thread(this);
+			thread.start();
+		}
 	}
 	
 	/**
