@@ -24,7 +24,7 @@ import de.gekko.exception.CurrencyMismatchException;
 import de.gekko.exchanges.BittrexArbitrageExchange;
 import de.gekko.websocket.BittrexWebsocket;
 import de.gekko.websocket.OrderBookUpdate;
-import de.gekko.websocket.Updateable;
+import de.gekko.websocket.UpdateableOrderbook;
 
 /**
  * Class that performs triangular arbitrage (aka. inter market arbitrage) on the Bittrex exchange.
@@ -32,7 +32,7 @@ import de.gekko.websocket.Updateable;
  * @author Maximilian Pfister
  *
  */
-public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager implements Runnable, Updateable {
+public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager implements Runnable, UpdateableOrderbook {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(BittrexStreamingTriangularArbitrager.class);
 	
@@ -96,12 +96,12 @@ public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager i
 				locks.get(currencyPair).lock();
 				// if update is available
 				if(queue.peek() != null) {
-					// add most recent updated orderBook
+					// get most recently updated orderbook
 					orderBooks.put(currencyPair, queue.poll());
 					// clear queue because older updates are irrelevant
 					queue.clear();
 				}
-				// editing queue done, release lock
+				// done editing queue, release lock
 				locks.get(currencyPair).unlock();
 			});
 			
@@ -168,7 +168,7 @@ public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager i
 	}
 	
 	/**
-	 * Halts arbitrage thread.
+	 * Stops arbitrage thread.
 	 */
 	public void stop() {
 		stop = true;

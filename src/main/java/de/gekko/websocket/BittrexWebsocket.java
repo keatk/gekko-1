@@ -254,7 +254,7 @@ public class BittrexWebsocket {
         return h;
     }
     
-	public void registerSubscriber(CurrencyPair currencyPair, Updateable updateableObject) throws Exception {
+	public void registerSubscriber(CurrencyPair currencyPair, UpdateableOrderbook updateableObject) throws Exception {
         useHandler(currencyPair, h -> {
     			h.addSubscriber(updateableObject);
     			return true;

@@ -1,6 +1,6 @@
 package de.gekko.websocket;
 
-public interface Updateable {
+public interface UpdateableOrderbook {
 	
 	public void receiveUpdate(OrderBookUpdate orderBookUpdate);
 }

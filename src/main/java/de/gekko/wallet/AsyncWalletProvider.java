@@ -33,10 +33,9 @@ public class AsyncWalletProvider implements Runnable {
 	private final Lock balanceLock = new ReentrantLock();
 	private final AbstractArbitrageExchange exchange;
 	private Map<Currency, Double> balances = new HashMap<>();
-	private Map<Currency, Double> startupBalances;
+	private Map<Currency, Double> startupBalances = new HashMap<>();
 	private boolean stop = false;
 	private boolean active = false;
-	private boolean startup = true;
 	private long updateInterval = 10; //seconds
 	private long lastUpdated = 0;
 	private long apiLimit = 1000; // miliseconds
@@ -101,12 +100,6 @@ public class AsyncWalletProvider implements Runnable {
 			// update local wallet image
 			if(wallet != null) {
 				updateBalances(wallet);
-			}
-			
-			// set startup balances
-			if(startup) {
-				startupBalances = balances;
-				startup = false;
 			}
 			
 			// Logging / printing wallet info

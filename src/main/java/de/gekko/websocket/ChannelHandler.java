@@ -31,7 +31,7 @@ public class ChannelHandler {
     private WebsocketChannelState state = WebsocketChannelState.SYNCING;
     
     private CurrencyPair currencyPair;
-    private Set<Updateable> subscribers = new HashSet<>();
+    private Set<UpdateableOrderbook> subscribers = new HashSet<>();
     private ExecutorService broadcastExecutorService;
   
     private final TreeMap<BigDecimal, LimitOrder> asks = new TreeMap<>();
@@ -249,11 +249,11 @@ public class ChannelHandler {
         return syncTimestamp;
     }
     
-    public void addSubscriber(Updateable updateableObject) {
+    public void addSubscriber(UpdateableOrderbook updateableObject) {
     		subscribers.add(updateableObject);
     }
     
-    public void removeSubscriber(Updateable updateableObject) {
+    public void removeSubscriber(UpdateableOrderbook updateableObject) {
 		subscribers.remove(updateableObject);
     }
 
