@@ -38,6 +38,8 @@ public class AsyncWalletProvider implements Runnable {
 	private boolean active = false;
 	private boolean startup = true;
 	private long updateInterval = 10; //seconds
+	private long lastUpdated = 0;
+	private long apiLimit = 1000; // miliseconds
 	
 	private AsyncWalletProvider(AbstractArbitrageExchange exchange) {
 		this.exchange = exchange;
@@ -73,21 +75,38 @@ public class AsyncWalletProvider implements Runnable {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+			
+			// wait to prevent running into API limit of exchange
+			long currentUpdateInterval = System.currentTimeMillis() - lastUpdated;
+			if(currentUpdateInterval < apiLimit) {
+				try {
+					Thread.sleep(apiLimit - currentUpdateInterval);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
 			// get wallet from exchange
 			Wallet wallet = null;
 			try {
 				wallet = exchange.fetchWallet();
+				lastUpdated = System.currentTimeMillis();
 			} catch (NotAvailableFromExchangeException | NotYetImplementedForExchangeException | ExchangeException
 					| IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+			
 			// update local wallet image
 			if(wallet != null) {
 				updateBalances(wallet);
 			}
+			
+			// Logging / printing wallet info
 			info();
 			
+			// set startup balances
 			if(startup) {
 				startupBalances = balances;
 				startup = false;
@@ -177,6 +196,13 @@ public class AsyncWalletProvider implements Runnable {
 	 */
 	public void stop() {
 		stop = true;
+	}
+	
+	/**
+	 * Forces the AsyncWalletProvider to update its state.
+	 */
+	public void forceUpdate() {
+		walletUpdateSemaphore.release();
 	}
 	
 	/**
