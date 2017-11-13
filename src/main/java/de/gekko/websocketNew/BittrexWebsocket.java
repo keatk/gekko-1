@@ -1,6 +1,7 @@
 package de.gekko.websocketNew;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
@@ -31,14 +32,14 @@ public class BittrexWebsocket {
 
 	}
 	
-	public static void main(String[] args) throws ClientProtocolException, IOException {
+	public static void main(String[] args) throws ClientProtocolException, IOException, URISyntaxException, InterruptedException {
 		BittrexWebsocket bittrexWebsocket = new BittrexWebsocket();
 		bittrexWebsocket.init();
 	}
 	
 	/* public methods */
 	
-	public void init() throws ClientProtocolException, IOException {
+	public void init() throws ClientProtocolException, IOException, URISyntaxException, InterruptedException {
 		cookieStore = new BasicCookieStore();
 		httpClient = HttpClients.custom().setUserAgent(USER_AGENT).setDefaultCookieStore(cookieStore).build();
 		CloudflareScraper scraper = new CloudflareScraper(httpClient);
