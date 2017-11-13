@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 public class BittrexWebsocket {
 
     private static final Logger LOG = LoggerFactory.getLogger(BittrexWebsocket.class);
+
     private static final String DEFAULT_SERVER_URL = "https://www.bittrex.com";
     
     
@@ -197,6 +198,7 @@ public class BittrexWebsocket {
             state = WebsocketState.CONNECTED;
             connectionTimestamp = new Date();
         } catch (Exception e) {
+        		// Negoatiation exception
             state = WebsocketState.ERROR;
             throw new RuntimeException(e);
         } finally {

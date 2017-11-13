@@ -36,7 +36,7 @@ public class AsyncWalletProvider implements Runnable {
 	private Map<Currency, Double> startupBalances = new HashMap<>();
 	private boolean stop = false;
 	private boolean active = false;
-	private long updateInterval = 10; //seconds
+	private long updateInterval = 10; // seconds
 	private long lastUpdated = 0;
 	private long apiLimit = 1000; // miliseconds
 	

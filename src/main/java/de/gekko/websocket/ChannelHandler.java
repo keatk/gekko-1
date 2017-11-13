@@ -32,7 +32,8 @@ public class ChannelHandler {
     
     private CurrencyPair currencyPair;
     private Set<UpdateableOrderbook> subscribers = new HashSet<>();
-    private ExecutorService broadcastExecutorService;
+//    private ExecutorService broadcastExecutorService;
+    private ExecutorService broadcastExecutorService = Executors.newFixedThreadPool(20); //TODO USE CACHED EXECUTOR POOLS
   
     private final TreeMap<BigDecimal, LimitOrder> asks = new TreeMap<>();
     private final TreeMap<BigDecimal, LimitOrder> bids = new TreeMap<>((k1, k2) -> -k1.compareTo(k2));
@@ -179,11 +180,11 @@ public class ChannelHandler {
 	
     public void broadcast() {
 		if(!subscribers.isEmpty()) {
-			broadcastExecutorService = Executors.newFixedThreadPool(subscribers.size());
+//			broadcastExecutorService = Executors.newFixedThreadPool(subscribers.size());
 			subscribers.forEach(subscriber -> broadcastExecutorService.submit(
 					() -> {subscriber.receiveUpdate(new OrderBookUpdate(currencyPair, getOrderBook()));
 					}));
-			broadcastExecutorService.shutdown();
+//			broadcastExecutorService.shutdown();
 		}
 	}
 

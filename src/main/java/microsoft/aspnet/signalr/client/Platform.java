@@ -54,6 +54,8 @@ public class Platform {
             osName = System.getProperty("os.name").toLowerCase(Locale.getDefault());
         }
         String userAgent = String.format("SignalR (lang=Java; os=%s; version=2.0)", osName);
+        
+        userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:56.0) Gecko/20100101 Firefox/56.0";
 
         return userAgent;
     }

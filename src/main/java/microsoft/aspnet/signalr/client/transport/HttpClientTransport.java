@@ -15,6 +15,7 @@ import microsoft.aspnet.signalr.client.Constants;
 import microsoft.aspnet.signalr.client.LogLevel;
 import microsoft.aspnet.signalr.client.Logger;
 import microsoft.aspnet.signalr.client.Platform;
+import microsoft.aspnet.signalr.client.http.CookieCredentials;
 import microsoft.aspnet.signalr.client.http.HttpConnection;
 import microsoft.aspnet.signalr.client.http.HttpConnectionFuture;
 import microsoft.aspnet.signalr.client.http.HttpConnectionFuture.ResponseCallback;
@@ -62,7 +63,11 @@ public abstract class HttpClientTransport implements ClientTransport {
         Request get = new Request(Constants.HTTP_GET);
         get.setUrl(url);
         get.setVerb(Constants.HTTP_GET);
-
+        //ADDED
+//        final CookieCredentials cc = new CookieCredentials();
+//        cc.addCookie("__cfduid", "dfdcb2721f698ad190194ec6a0209d7891510512901");
+//        cc.addCookie("cf_clearance", "b321431405298a440b12720f21062443d23bc1a8-1510513900-10800");
+//        connection.setCredentials(cc);
         connection.prepareRequest(get);
 
         final SignalRFuture<NegotiationResponse> negotiationFuture = new SignalRFuture<NegotiationResponse>();
@@ -74,6 +79,13 @@ public abstract class HttpClientTransport implements ClientTransport {
                 try {
                     log("Response received", LogLevel.Verbose);
                     throwOnInvalidStatusCode(response);
+                    
+//                    String responseContent = response.readToEnd();
+//                    System.out.println(responseContent);
+//                    
+//                    response.getHeaders().forEach((key, value) -> {
+//                    	System.out.println(key + " " + value);
+//                    });
 
                     log("Read response data to the end", LogLevel.Verbose);
                     String negotiationContent = response.readToEnd();

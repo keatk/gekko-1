@@ -358,11 +358,14 @@ public class Connection implements ConnectionBase {
                             return;
                         }
 
+
                         mConnectionId = negotiationResponse.getConnectionId();
                         mConnectionToken = negotiationResponse.getConnectionToken();
                         log("ConnectionId: " + mConnectionId, LogLevel.Verbose);
                         log("ConnectionToken: " + mConnectionToken, LogLevel.Verbose);
-
+                        
+                        System.out.println(mConnectionId);
+                        System.out.println(mConnectionToken);
                         KeepAliveData keepAliveData = null;
                         if (negotiationResponse.getKeepAliveTimeout() > 0) {
                             log("Keep alive timeout: " + negotiationResponse.getKeepAliveTimeout(), LogLevel.Verbose);
@@ -606,6 +609,7 @@ public class Connection implements ConnectionBase {
             }
 
             Version version = new Version(versionString);
+            System.out.println("======> " + versionString);
 
             return version.equals(PROTOCOL_VERSION);
 
