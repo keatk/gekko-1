@@ -75,7 +75,9 @@ public class BittrexWebsocket {
 
 	private ArrayList<Hub> hubs;
 
-	NegotiationResponse negotiationResponse;
+	private NegotiationResponse negotiationResponse;
+	
+	/* constructors */
 
 	private BittrexWebsocket() {
 		this.gson = new GsonBuilder()
@@ -84,14 +86,19 @@ public class BittrexWebsocket {
 		hubs = new ArrayList<>();
 	}
 
+	/* public methods */
+	
+	//TODO remove after class is finished
 	public static void main(String[] args)
 			throws ClientProtocolException, IOException, URISyntaxException, InterruptedException {
 		BittrexWebsocket bittrexWebsocket = new BittrexWebsocket();
 		bittrexWebsocket.init();
 	}
 
-	/* public methods */
-
+	/**
+	 * Returns singleton instance.
+	 * @return
+	 */
 	public static synchronized BittrexWebsocket getInstance() {
 		if (BittrexWebsocket.instance == null) {
 			BittrexWebsocket.instance = new BittrexWebsocket();
@@ -99,6 +106,13 @@ public class BittrexWebsocket {
 		return BittrexWebsocket.instance;
 	}
 
+	/**
+	 * Initializes websocket connection to Bittrex.
+	 * @throws ClientProtocolException
+	 * @throws IOException
+	 * @throws URISyntaxException
+	 * @throws InterruptedException
+	 */
 	public void init() throws ClientProtocolException, IOException, URISyntaxException, InterruptedException {
 		LOGGER.info("Initalizing connection...");
 
@@ -122,12 +136,22 @@ public class BittrexWebsocket {
 		subscribeOrderbook(new CurrencyPair(Currency.getInstance("USDT"), Currency.getInstance("BTC")));
 	}
 
-	public void registerHub(String name) {
+	/**
+	 * Register custom hub. Currently not used.
+	 * @param hubName
+	 */
+	public void registerHub(String hubName) {
 		Hub hub = new Hub();
-		hub.setName(name);
+		hub.setName(hubName);
 		hubs.add(hub);
 	}
 	
+	/**
+	 * Subscribe to orderbook related to currencyPair.
+	 * @param currencyPair
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
 	public void subscribeOrderbook(CurrencyPair currencyPair) throws IOException, InterruptedException {
 		// Prepare and send subscription message
 		HubMessage subscriptionMessage = new HubMessage();
@@ -150,7 +174,14 @@ public class BittrexWebsocket {
 
 	/* private methods */
 
+	/**
+	 * Sends signalR negotiation request and sets negotiationResponse variable.
+	 * @throws URISyntaxException
+	 * @throws ClientProtocolException
+	 * @throws IOException
+	 */
 	private void negotiate() throws URISyntaxException, ClientProtocolException, IOException {
+		// If no custom hub was set use default hub
 		if (hubs.isEmpty()) {
 			registerHub(DEFAULT_HUB);
 		}
@@ -173,6 +204,10 @@ public class BittrexWebsocket {
 		LOGGER.info("Negotiation response received.");
 	}
 
+	/**
+	 * Starts the websocket transport.
+	 * @throws URISyntaxException
+	 */
 	private void connect() throws URISyntaxException {
 		// Create cookie strings for websocket connection if cloudflare DDOS protection is enabled
 		ArrayList<String> cookies = new ArrayList<>();
@@ -216,6 +251,12 @@ public class BittrexWebsocket {
 		LOGGER.info("Websocket transport started.");
 	}
 	
+	/**
+	 * Sends start signal to server. To be used after websocket transport was started.
+	 * @throws URISyntaxException
+	 * @throws ClientProtocolException
+	 * @throws IOException
+	 */
 	private void start() throws URISyntaxException, ClientProtocolException, IOException {
 		// Build negotiation request
 		URIBuilder builder = new URIBuilder();
@@ -238,6 +279,11 @@ public class BittrexWebsocket {
 		}
 	}
 	
+	/**
+	 * Converts currencyPair to bittrex currency string used in websocket messages.
+	 * @param currencyPair
+	 * @return
+	 */
 	private String toBittrexCurrencyString(CurrencyPair currencyPair) {
 		return currencyPair.base.toString() + "-" + currencyPair.counter.toString();
 	}
