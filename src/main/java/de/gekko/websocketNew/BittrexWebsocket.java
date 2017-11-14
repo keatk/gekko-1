@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -29,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 
 import de.gekko.websocketNew.pojo.Hub;
 import de.gekko.websocketNew.pojo.NegotiationResponse;
@@ -102,6 +104,7 @@ public class BittrexWebsocket {
 		}
 		negotiate();
 		connect();
+		start();
 
 	}
 
@@ -137,7 +140,6 @@ public class BittrexWebsocket {
 	}
 
 	private void connect() throws URISyntaxException {
-		
 		// Create cookie strings for websocket connection if cloudflare DDOS protection is enabled
 		ArrayList<String> cookies = new ArrayList<>();
 		cookieStore.getCookies().forEach((item) -> {
@@ -162,19 +164,42 @@ public class BittrexWebsocket {
 		builder.setScheme("wss").setHost(DEFAULT_SERVER_DOMAIN).setPath("/signalr/connect")
 				.setParameter("transport", "webSockets").setParameter("clientProtocol", CLIENT_PROTOCOL_NUMBER)
 				.setParameter("connectionToken", negotiationResponse.getConnectionToken())
-				.setParameter("connectionData", gson.toJson(hubs))
-				.setParameter("tid", "5");
+				.setParameter("connectionData", gson.toJson(hubs));
+//				.setParameter("tid", "" + (new Random().nextInt(12) + 1));
 
 		System.out.println(builder.build().toString());
 
 		LOGGER.info("Starting websocket transport...");
-		try {			
+		try {
+			// Connect websocket to server
 			WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-			
 			container.connectToServer(BittrexWebsocketClientEndpoint.class, cec, builder.build());
 			messageLatch.await(100, TimeUnit.SECONDS);
 		} catch (DeploymentException | InterruptedException | IOException ex) {
 			// Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+		}
+		LOGGER.info("Websocket transport started.");
+	}
+	
+	private void start() throws URISyntaxException, ClientProtocolException, IOException {
+		// Build negotiation request
+		URIBuilder builder = new URIBuilder();
+		builder.setScheme("https").setHost(DEFAULT_SERVER_DOMAIN).setPath("/signalr/start")
+		.setParameter("transport", "webSockets").setParameter("clientProtocol", CLIENT_PROTOCOL_NUMBER)
+		.setParameter("connectionToken", negotiationResponse.getConnectionToken())
+		.setParameter("connectionData", gson.toJson(hubs));
+		HttpGet request = new HttpGet(builder.build());
+
+		// Send negotiation request
+		LOGGER.info("Sending transport start notification...");
+		HttpResponse response = httpClient.execute(request);
+
+		// Read and set negotiation response
+		String responseContent = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8.name());
+		if(gson.fromJson(responseContent, JsonObject.class).get("Response").toString().equals("started")) {
+			LOGGER.info("Start notification successful");
+		} else {
+			LOGGER.info("ERROR: Start notification failed.");
 		}
 
 	}

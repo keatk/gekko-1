@@ -16,6 +16,7 @@ public class BittrexWebsocketClientEndpoint extends Endpoint {
 	@Override
 	public void onOpen(Session session, EndpointConfig config) {
 		System.out.println("Connected to server");
+		BittrexWebsocket.messageLatch.countDown();
 		final RemoteEndpoint remote = session.getBasicRemote();
 		session.addMessageHandler(new MessageHandler.Whole<String>() {
 			public void onMessage(String text) {
