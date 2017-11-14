@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import javax.websocket.ClientEndpointConfig;
 import javax.websocket.ContainerProvider;
 import javax.websocket.DeploymentException;
+import javax.websocket.Session;
 import javax.websocket.WebSocketContainer;
 
 import org.apache.http.HttpResponse;
@@ -25,6 +26,7 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.knowm.xchange.currency.CurrencyPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +35,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
 import de.gekko.websocketNew.pojo.Hub;
+import de.gekko.websocketNew.pojo.HubsMessage;
 import de.gekko.websocketNew.pojo.NegotiationResponse;
 
 /**
@@ -64,6 +67,7 @@ public class BittrexWebsocket {
 
 	private CookieStore cookieStore;
 	private HttpClient httpClient;
+	private Session webSocketSession;
 	private Gson gson;
 
 	private ArrayList<Hub> hubs;
@@ -112,6 +116,11 @@ public class BittrexWebsocket {
 		Hub hub = new Hub();
 		hub.setName(name);
 		hubs.add(hub);
+	}
+	
+	public void subscribeOrderbook(CurrencyPair currencyPair) throws IOException {
+		HubsMessage subscriptionMessage = new HubsMessage();
+		webSocketSession.getBasicRemote().sendText("");
 	}
 
 	/* private methods */
@@ -173,7 +182,7 @@ public class BittrexWebsocket {
 		try {
 			// Connect websocket to server
 			WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-			container.connectToServer(BittrexWebsocketClientEndpoint.class, cec, builder.build());
+			webSocketSession = container.connectToServer(BittrexWebsocketClientEndpoint.class, cec, builder.build());
 			messageLatch.await(100, TimeUnit.SECONDS);
 		} catch (DeploymentException | InterruptedException | IOException ex) {
 			// Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
@@ -196,12 +205,15 @@ public class BittrexWebsocket {
 
 		// Read and set negotiation response
 		String responseContent = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8.name());
-		if(gson.fromJson(responseContent, JsonObject.class).get("Response").toString().equals("started")) {
-			LOGGER.info("Start notification successful");
+		if(gson.fromJson(responseContent, JsonObject.class).get("Response").toString().equals("\"started\"")) {
+			LOGGER.info("Start notification successful.");
 		} else {
 			LOGGER.info("ERROR: Start notification failed.");
 		}
-
+	}
+	
+	private String toBittrexCurrencyString(CurrencyPair currencyPair) {
+		return currencyPair.base.toString() + "-" + currencyPair.counter.toString();
 	}
 
 }
