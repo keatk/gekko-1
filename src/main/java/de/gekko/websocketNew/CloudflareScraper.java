@@ -17,6 +17,8 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.util.EntityUtils;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.Scriptable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Scraper to bypass Cloudflare DDOS/anti-bot security.
@@ -26,6 +28,8 @@ import org.mozilla.javascript.Scriptable;
 public class CloudflareScraper {
 
 	/* constants */
+	
+	private static final Logger LOGGER = LoggerFactory.getLogger(CloudflareScraper.class);
 
 	private final Pattern OPERATION_PATTERN = Pattern.compile("setTimeout\\(function\\(\\)\\{\\s+(var s,t,o,p,b,r,e,a,k,i,n,g,f.+?\\r?\\n[\\s\\S]+?a\\.value =.+?)\\r?\\n");
 	private final Pattern PASS_PATTERN = Pattern.compile("name=\"pass\" value=\"(.+?)\"");
@@ -63,9 +67,11 @@ public class CloudflareScraper {
 		if (response.getLastHeader("Server").getValue().equals("cloudflare-nginx")
 				&& responseContent.contains("jschl_vc")
 				&& responseContent.contains("jschl_answer")) {
+			LOGGER.info("Cloudflare DDOS protection detected. Attempting to bypass...");
 			if (!cloudFlareSolve(responseContent, domain)) {
 				// TODO THROW EXCEPTION
 			}
+			LOGGER.info("Successfully bypassed Cloudflare DDOS protection.");
 			ret = true;
 		}
 
@@ -140,7 +146,7 @@ public class CloudflareScraper {
 		builder.setScheme("http").setHost(host).setParameter("jschl_vc", challenge).setParameter("pass", challengePass)
 				.setParameter("jschl_answer", answer);
 
-		System.out.println(builder.build().toString());
+//		System.out.println(builder.build().toString());
 		
 		HttpGet request = new HttpGet(builder.build());
 		request.setHeader(HttpHeaders.REFERER, "http://" + domain + "/");
