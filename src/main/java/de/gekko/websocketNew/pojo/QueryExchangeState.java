@@ -1,4 +1,4 @@
-package de.gekko.websocket;
+package de.gekko.websocketNew.pojo;
 
 import java.util.Arrays;
 

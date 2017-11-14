@@ -5,7 +5,7 @@ import java.util.Map;
 
 import com.google.gson.annotations.SerializedName;
 
-public class HubsMessage {
+public class HubMessage {
 	
 	@SerializedName("H")
 	private String hubName;

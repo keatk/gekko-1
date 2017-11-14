@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -26,6 +25,7 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +35,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
 import de.gekko.websocketNew.pojo.Hub;
-import de.gekko.websocketNew.pojo.HubsMessage;
+import de.gekko.websocketNew.pojo.HubMessage;
 import de.gekko.websocketNew.pojo.NegotiationResponse;
 
 /**
@@ -48,6 +48,7 @@ public class BittrexWebsocket {
 	/* constants */
 
 	final static CountDownLatch messageLatch = new CountDownLatch(1);
+	final static CountDownLatch responseLatch = new CountDownLatch(1);
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(BittrexWebsocket.class);
 
@@ -64,6 +65,8 @@ public class BittrexWebsocket {
 			"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:41.0) Gecko/20100101 Firefox/41.0" };
 
 	/* variables */
+	
+	private static BittrexWebsocket instance;
 
 	private CookieStore cookieStore;
 	private HttpClient httpClient;
@@ -74,7 +77,7 @@ public class BittrexWebsocket {
 
 	NegotiationResponse negotiationResponse;
 
-	public BittrexWebsocket() {
+	private BittrexWebsocket() {
 		this.gson = new GsonBuilder()
 				// .setPrettyPrinting()
 				.create();
@@ -88,6 +91,13 @@ public class BittrexWebsocket {
 	}
 
 	/* public methods */
+
+	public static synchronized BittrexWebsocket getInstance() {
+		if (BittrexWebsocket.instance == null) {
+			BittrexWebsocket.instance = new BittrexWebsocket();
+		}
+		return BittrexWebsocket.instance;
+	}
 
 	public void init() throws ClientProtocolException, IOException, URISyntaxException, InterruptedException {
 		LOGGER.info("Initalizing connection...");
@@ -109,7 +119,7 @@ public class BittrexWebsocket {
 		negotiate();
 		connect();
 		start();
-
+		subscribeOrderbook(new CurrencyPair(Currency.getInstance("USDT"), Currency.getInstance("BTC")));
 	}
 
 	public void registerHub(String name) {
@@ -118,9 +128,24 @@ public class BittrexWebsocket {
 		hubs.add(hub);
 	}
 	
-	public void subscribeOrderbook(CurrencyPair currencyPair) throws IOException {
-		HubsMessage subscriptionMessage = new HubsMessage();
-		webSocketSession.getBasicRemote().sendText("");
+	public void subscribeOrderbook(CurrencyPair currencyPair) throws IOException, InterruptedException {
+		// Prepare and send subscription message
+		HubMessage subscriptionMessage = new HubMessage();
+		subscriptionMessage.setHubName(DEFAULT_HUB);
+		subscriptionMessage.setMethodName("SubscribeToExchangeDeltas");
+		subscriptionMessage.setArguments(Arrays.asList(toBittrexCurrencyString(currencyPair)));
+		webSocketSession.getBasicRemote().sendText(gson.toJson(subscriptionMessage));
+		
+		// Wait for response
+		responseLatch.await(100, TimeUnit.SECONDS);
+		// Prepare and send exchange state request
+		HubMessage exchangeStateRequest = new HubMessage();
+		exchangeStateRequest.setHubName(DEFAULT_HUB);
+		exchangeStateRequest.setMethodName("QueryExchangeState");
+		exchangeStateRequest.setArguments(Arrays.asList(toBittrexCurrencyString(currencyPair)));
+		exchangeStateRequest.setInvocationIdentifier(1);
+		System.out.println(gson.toJson(exchangeStateRequest));
+		webSocketSession.getBasicRemote().sendText(gson.toJson(exchangeStateRequest));
 	}
 
 	/* private methods */
@@ -182,6 +207,7 @@ public class BittrexWebsocket {
 		try {
 			// Connect websocket to server
 			WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+			container.setDefaultMaxTextMessageBufferSize(1048576);
 			webSocketSession = container.connectToServer(BittrexWebsocketClientEndpoint.class, cec, builder.build());
 			messageLatch.await(100, TimeUnit.SECONDS);
 		} catch (DeploymentException | InterruptedException | IOException ex) {
