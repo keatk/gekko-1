@@ -5,6 +5,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -34,6 +35,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
+import de.gekko.websocketNew.pojo.ExchangeState;
 import de.gekko.websocketNew.pojo.Hub;
 import de.gekko.websocketNew.pojo.HubMessage;
 import de.gekko.websocketNew.pojo.NegotiationResponse;
@@ -46,9 +48,6 @@ import de.gekko.websocketNew.pojo.NegotiationResponse;
 public class BittrexWebsocket {
 
 	/* constants */
-
-	final static CountDownLatch messageLatch = new CountDownLatch(1);
-	final static CountDownLatch responseLatch = new CountDownLatch(1);
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(BittrexWebsocket.class);
 
@@ -63,6 +62,10 @@ public class BittrexWebsocket {
 			"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36",
 			"Mozilla/5.0 (Windows NT 6.1; WOW64; rv:46.0) Gecko/20100101 Firefox/46.0",
 			"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:41.0) Gecko/20100101 Firefox/41.0" };
+	
+	private final  CountDownLatch startupLatch = new CountDownLatch(1);
+	private final  CountDownLatch responseLatch = new CountDownLatch(1);
+	private final  CountDownLatch exchangeStateLatch = new CountDownLatch(1);
 
 	/* variables */
 	
@@ -72,10 +75,13 @@ public class BittrexWebsocket {
 	private HttpClient httpClient;
 	private Session webSocketSession;
 	private Gson gson;
+	private Map<CurrencyPair, ChannelHandler> channelHandlers;
 
 	private ArrayList<Hub> hubs;
 
 	private NegotiationResponse negotiationResponse;
+	
+	private ExchangeState exchangeState;
 	
 	/* constructors */
 
@@ -84,6 +90,7 @@ public class BittrexWebsocket {
 				// .setPrettyPrinting()
 				.create();
 		hubs = new ArrayList<>();
+		channelHandlers = new HashMap<>();
 	}
 
 	/* public methods */
@@ -93,6 +100,26 @@ public class BittrexWebsocket {
 			throws ClientProtocolException, IOException, URISyntaxException, InterruptedException {
 		BittrexWebsocket bittrexWebsocket = new BittrexWebsocket();
 		bittrexWebsocket.init();
+	}
+
+	public ExchangeState getExchangeState() {
+		return exchangeState;
+	}
+
+	public void setExchangeState(ExchangeState exchangeState) {
+		this.exchangeState = exchangeState;
+	}
+
+	public CountDownLatch getStartupLatch() {
+		return startupLatch;
+	}
+
+	public CountDownLatch getResponseLatch() {
+		return responseLatch;
+	}
+
+	public CountDownLatch getExchangeStateLatch() {
+		return exchangeStateLatch;
 	}
 
 	/**
@@ -152,7 +179,8 @@ public class BittrexWebsocket {
 	 * @throws IOException
 	 * @throws InterruptedException
 	 */
-	public void subscribeOrderbook(CurrencyPair currencyPair) throws IOException, InterruptedException {
+	public synchronized void subscribeOrderbook(CurrencyPair currencyPair) throws IOException, InterruptedException {
+		LOGGER.info("Subscribing to [{}].", currencyPair);
 		// Prepare and send subscription message
 		HubMessage subscriptionMessage = new HubMessage();
 		subscriptionMessage.setHubName(DEFAULT_HUB);
@@ -161,18 +189,40 @@ public class BittrexWebsocket {
 		webSocketSession.getBasicRemote().sendText(gson.toJson(subscriptionMessage));
 		
 		// Wait for response
+		LOGGER.info("Waiting for subscription response for [{}].", currencyPair);
 		responseLatch.await(100, TimeUnit.SECONDS);
+		LOGGER.info("Querying exchange state for [{}].", currencyPair);
 		// Prepare and send exchange state request
 		HubMessage exchangeStateRequest = new HubMessage();
 		exchangeStateRequest.setHubName(DEFAULT_HUB);
 		exchangeStateRequest.setMethodName("QueryExchangeState");
 		exchangeStateRequest.setArguments(Arrays.asList(toBittrexCurrencyString(currencyPair)));
 		exchangeStateRequest.setInvocationIdentifier(1);
-		System.out.println(gson.toJson(exchangeStateRequest));
 		webSocketSession.getBasicRemote().sendText(gson.toJson(exchangeStateRequest));
+		
+		// Wait for exchange state
+		exchangeStateLatch.await(100, TimeUnit.SECONDS);
+		if(exchangeState == null) {
+			LOGGER.info("ERROR: Cloud not retrieve exchange state.");
+		}
+		
+	}
+	
+	public void sendToChannelHandler(CurrencyPair currencyPair, Handable handable) {
+		if(!channelHandlers.containsKey(currencyPair)) {
+			createChannelHandler(currencyPair);
+		}
+		
+		
 	}
 
 	/* private methods */
+	
+	private synchronized void createChannelHandler(CurrencyPair currencyPair) {
+		if(!channelHandlers.containsKey(currencyPair)) {
+			channelHandlers.put(currencyPair, new ChannelHandler());
+		}
+	}
 
 	/**
 	 * Sends signalR negotiation request and sets negotiationResponse variable.
@@ -199,8 +249,14 @@ public class BittrexWebsocket {
 
 		// Read and set negotiation response
 		String responseContent = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8.name());
-		System.out.println(responseContent);
-		negotiationResponse = new Gson().fromJson(responseContent, NegotiationResponse.class);
+//		System.out.println(responseContent);
+		try {
+			negotiationResponse = new Gson().fromJson(responseContent, NegotiationResponse.class);
+		} catch(Throwable t) {
+			LOGGER.info("NEGOTIATION ERROR: " + t.toString());
+			LOGGER.info(responseContent);
+		}
+
 		LOGGER.info("Negotiation response received.");
 	}
 
@@ -236,7 +292,7 @@ public class BittrexWebsocket {
 				.setParameter("connectionData", gson.toJson(hubs));
 //				.setParameter("tid", "" + (new Random().nextInt(12) + 1));
 
-		System.out.println(builder.build().toString());
+//		System.out.println(builder.build().toString());
 
 		LOGGER.info("Starting websocket transport...");
 		try {
@@ -244,8 +300,8 @@ public class BittrexWebsocket {
 			WebSocketContainer container = ContainerProvider.getWebSocketContainer();
 			container.setDefaultMaxTextMessageBufferSize(1048576);
 			webSocketSession = container.connectToServer(BittrexWebsocketClientEndpoint.class, cec, builder.build());
-			messageLatch.await(100, TimeUnit.SECONDS);
-		} catch (DeploymentException | InterruptedException | IOException ex) {
+			//startupLatch.await(100, TimeUnit.SECONDS);
+		} catch (DeploymentException | IOException ex) {
 			// Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
 		}
 		LOGGER.info("Websocket transport started.");

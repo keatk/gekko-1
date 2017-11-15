@@ -16,14 +16,15 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import de.gekko.websocketNew.pojo.ExchangeState;
 import de.gekko.websocketNew.pojo.HubMessage;
 import de.gekko.websocketNew.pojo.PersistentConnectionMessage;
+import de.gekko.websocketNew.pojo.ResponseMessage;
 /**
  * Handles Bittrex websocket transport.
  * @author Maximilian Pfister
  *
  */
-@WebSocket(maxTextMessageSize = 1048576, maxBinaryMessageSize = 1048576)
 public class BittrexWebsocketClientEndpoint extends Endpoint {
 	
 	/* constants */
@@ -35,7 +36,7 @@ public class BittrexWebsocketClientEndpoint extends Endpoint {
 	private Gson gson = new GsonBuilder()
 			// .setPrettyPrinting()
 			.create();
-	private BittrexWebsocket bittrexWebsocket;
+	private BittrexWebsocket bittrexWebsocket = BittrexWebsocket.getInstance();
 	private boolean startupSuccess = false;
 	private 	ExecutorService messageExecutor = Executors.newSingleThreadExecutor();
 	
@@ -44,12 +45,10 @@ public class BittrexWebsocketClientEndpoint extends Endpoint {
 	@Override
 	public void onOpen(Session session, EndpointConfig config) {
 		System.out.println("Connected to server");
-		BittrexWebsocket.messageLatch.countDown();
-		final RemoteEndpoint remote = session.getBasicRemote();
 		session.addMessageHandler(new MessageHandler.Whole<String>() {
 			public void onMessage(String messageString) {
 
-				// handle messages
+				// Handle messages concurrently
 				messageExecutor.submit(() -> {
 					// Check if keep alive message
 					if (messageString.length() < 3) {
@@ -60,20 +59,44 @@ public class BittrexWebsocketClientEndpoint extends Endpoint {
 					// Check if PersistentConnectionMessage
 					if (messageString.charAt(2) == 'C') {
 						LOGGER.info("PersistentConnectionMessage");
-						// TODO
-//						if (!startupSuccess) {
-//							PersistentConnectionMessage message = gson.fromJson(messageString,
-//									PersistentConnectionMessage.class);
-//							if (message.getTransportStartFlag() == 1) {
-//								startupSuccess = true;
-//							}
-//						}
-						return;
+						PersistentConnectionMessage message = gson.fromJson(messageString, PersistentConnectionMessage.class);
+						
+						// Check for startup message
+						if (!startupSuccess) {
+							if (message.getTransportStartFlag() == 1) {
+								bittrexWebsocket.getStartupLatch().countDown();
+								return;
+							}
+						}
+						
+						// Check if hub messages are present
+						if(!message.getMessageData().isEmpty()) {
+							HubMessage hubMessage = gson.fromJson(message.getMessageData().toString(), HubMessage.class);
+							if(hubMessage.getMethodName().equals(""));
+							
+						}
+
 					}
+					// Check if responseMessage
 					if (messageString.charAt(2) == 'R') {
-						bittrexWebsocket.responseLatch.countDown();
-						return;
+						try {
+							ResponseMessage responseMessage = gson.fromJson(messageString, ResponseMessage.class);
+							if(responseMessage.getResponse().toString().equals("true")) {
+								bittrexWebsocket.getResponseLatch().countDown();
+								return;
+							} else {
+								ExchangeState exchangeState = gson.fromJson(responseMessage.getResponse().toString(), ExchangeState.class);
+								bittrexWebsocket.setExchangeState(exchangeState);
+								bittrexWebsocket.getExchangeStateLatch().countDown();
+								return;
+							}
+						} catch (Throwable t) {
+							LOGGER.info(t.toString());
+							LOGGER.info(messageString);
+							System.exit(1);
+						}
 					}
+					
 				});
 			}
 		});

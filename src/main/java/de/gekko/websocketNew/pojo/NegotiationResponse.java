@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName;
 
 /**
  * NegotiationResponse POJO class
- * JSON:
+ * Example JSON:
  * { 
  * 	"Url":"/signalr",
  *  "ConnectionToken":"X97dw3uxW4NPPggQsYVcNcyQcuz4w2",

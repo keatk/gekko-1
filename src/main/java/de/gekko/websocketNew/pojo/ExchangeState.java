@@ -4,16 +4,22 @@ import java.util.Arrays;
 
 import com.google.gson.annotations.SerializedName;
 
-class QueryExchangeState {
+import de.gekko.websocketNew.Handable;
+
+public class ExchangeState implements Handable{
 	
     @SerializedName("MarketName")
     protected String marketName;      // always null
+    
     @SerializedName("Nounce")
     protected long nounce;
+    
     @SerializedName("Buys")
     protected Order[] buys;
+    
     @SerializedName("Sells")
     protected Order[] sells;
+    
     @SerializedName("Fills")
     protected Fill[] fills;
     
