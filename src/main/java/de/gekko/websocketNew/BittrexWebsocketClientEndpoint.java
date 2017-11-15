@@ -1,5 +1,7 @@
 package de.gekko.websocketNew;
 
+import java.lang.reflect.Type;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -15,8 +17,10 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 
-import de.gekko.websocketNew.pojo.ExchangeState;
+import de.gekko.websocketNew.pojo.ExchangeStateUpdate;
 import de.gekko.websocketNew.pojo.HubMessage;
 import de.gekko.websocketNew.pojo.PersistentConnectionMessage;
 import de.gekko.websocketNew.pojo.ResponseMessage;
@@ -71,8 +75,30 @@ public class BittrexWebsocketClientEndpoint extends Endpoint {
 						
 						// Check if hub messages are present
 						if(!message.getMessageData().isEmpty()) {
-							HubMessage hubMessage = gson.fromJson(message.getMessageData().toString(), HubMessage.class);
-							if(hubMessage.getMethodName().equals(""));
+							try {
+								JsonArray hubMessages = gson.fromJson(message.getMessageData().toString(), JsonArray.class);
+								hubMessages.forEach((jsonElement) ->{
+									// Check each hub message for exchange state updates
+									JsonObject jsonObject = jsonElement.getAsJsonObject();
+									if(jsonObject.get("M").getAsString().equals("updateExchangeState")) {
+										// Get exchange state items
+										JsonArray exchangeStates = gson.fromJson(jsonObject.get("A").toString(), JsonArray.class);
+										exchangeStates.forEach((exchangeStateElement)->{
+											ExchangeStateUpdate exchangeState = gson.fromJson(exchangeStateElement.toString(), ExchangeStateUpdate.class);
+											bittrexWebsocket.sendToChannelHandler(bittrexWebsocket.toCurrencyPair(exchangeState.getMarketName()), exchangeState);
+										});
+									} else {
+										// do something with other methods
+									}
+								});
+							} catch (Exception e) {
+								LOGGER.info(message.getMessageData().toString());
+								LOGGER.info(e.toString());
+								System.exit(1);
+							}
+							
+//							if(hubMessage.getMethodName().equals("updateExchangeState")) {
+//							}
 							
 						}
 
@@ -85,7 +111,7 @@ public class BittrexWebsocketClientEndpoint extends Endpoint {
 								bittrexWebsocket.getResponseLatch().countDown();
 								return;
 							} else {
-								ExchangeState exchangeState = gson.fromJson(responseMessage.getResponse().toString(), ExchangeState.class);
+								ExchangeStateUpdate exchangeState = gson.fromJson(responseMessage.getResponse().toString(), ExchangeStateUpdate.class);
 								bittrexWebsocket.setExchangeState(exchangeState);
 								bittrexWebsocket.getExchangeStateLatch().countDown();
 								return;

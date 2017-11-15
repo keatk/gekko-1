@@ -4,29 +4,49 @@ import java.util.Arrays;
 
 import com.google.gson.annotations.SerializedName;
 
-import de.gekko.websocketNew.Handable;
+import de.gekko.websocketNew.ChannelHandlerUpdate;
 
-public class ExchangeState implements Handable{
+public class ExchangeStateUpdate implements ChannelHandlerUpdate{
 	
     @SerializedName("MarketName")
-    protected String marketName;      // always null
+    private String marketName;      // always null
     
     @SerializedName("Nounce")
-    protected long nounce;
+    private long nounce;
     
     @SerializedName("Buys")
-    protected Order[] buys;
+    private Order[] buys;
     
     @SerializedName("Sells")
-    protected Order[] sells;
+    private Order[] sells;
     
     @SerializedName("Fills")
-    protected Fill[] fills;
+    private Fill[] fills;
     
     @Override
     public String toString() {
         return "QueryExchangeState [marketName=" + marketName + ", nounce=" + nounce + ", buys=" + Arrays.toString(buys)
                 + ", sells=" + Arrays.toString(sells) + ", fills=" + Arrays.toString(fills) + "]";
     }
-    
+
+	public String getMarketName() {
+		return marketName;
+	}
+
+	public long getNounce() {
+		return nounce;
+	}
+
+	public Order[] getBuys() {
+		return buys;
+	}
+
+	public Order[] getSells() {
+		return sells;
+	}
+
+	public Fill[] getFills() {
+		return fills;
+	}
+ 
 }

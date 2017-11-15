@@ -35,7 +35,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
-import de.gekko.websocketNew.pojo.ExchangeState;
+import de.gekko.websocketNew.pojo.ExchangeStateUpdate;
 import de.gekko.websocketNew.pojo.Hub;
 import de.gekko.websocketNew.pojo.HubMessage;
 import de.gekko.websocketNew.pojo.NegotiationResponse;
@@ -81,7 +81,7 @@ public class BittrexWebsocket {
 
 	private NegotiationResponse negotiationResponse;
 	
-	private ExchangeState exchangeState;
+	private ExchangeStateUpdate exchangeState;
 	
 	/* constructors */
 
@@ -100,13 +100,25 @@ public class BittrexWebsocket {
 			throws ClientProtocolException, IOException, URISyntaxException, InterruptedException {
 		BittrexWebsocket bittrexWebsocket = new BittrexWebsocket();
 		bittrexWebsocket.init();
+		bittrexWebsocket.subscribeOrderbook(new CurrencyPair(Currency.getInstance("USDT"), Currency.getInstance("BTC")));
 	}
 
-	public ExchangeState getExchangeState() {
+	/**
+	 * Returns singleton instance.
+	 * @return
+	 */
+	public static synchronized BittrexWebsocket getInstance() {
+		if (BittrexWebsocket.instance == null) {
+			BittrexWebsocket.instance = new BittrexWebsocket();
+		}
+		return BittrexWebsocket.instance;
+	}
+	
+	public ExchangeStateUpdate getExchangeState() {
 		return exchangeState;
 	}
 
-	public void setExchangeState(ExchangeState exchangeState) {
+	public void setExchangeState(ExchangeStateUpdate exchangeState) {
 		this.exchangeState = exchangeState;
 	}
 
@@ -121,16 +133,24 @@ public class BittrexWebsocket {
 	public CountDownLatch getExchangeStateLatch() {
 		return exchangeStateLatch;
 	}
-
+	
 	/**
-	 * Returns singleton instance.
+	 * Converts currencyPair to bittrex currency string used in websocket messages.
+	 * @param currencyPair
 	 * @return
 	 */
-	public static synchronized BittrexWebsocket getInstance() {
-		if (BittrexWebsocket.instance == null) {
-			BittrexWebsocket.instance = new BittrexWebsocket();
-		}
-		return BittrexWebsocket.instance;
+	public String toBittrexCurrencyString(CurrencyPair currencyPair) {
+		return currencyPair.base.toString() + "-" + currencyPair.counter.toString();
+	}
+	
+	/**
+	 * Converts bittrex currency string to currencyPair.
+	 * @param currencyPair
+	 * @return
+	 */
+	public CurrencyPair toCurrencyPair(String bittrexCurrencyString) {
+		String currencies[] = bittrexCurrencyString.split("-");
+		return new CurrencyPair(Currency.getInstance(currencies[0]), Currency.getInstance(currencies[1]));
 	}
 
 	/**
@@ -160,7 +180,6 @@ public class BittrexWebsocket {
 		negotiate();
 		connect();
 		start();
-		subscribeOrderbook(new CurrencyPair(Currency.getInstance("USDT"), Currency.getInstance("BTC")));
 	}
 
 	/**
@@ -180,47 +199,36 @@ public class BittrexWebsocket {
 	 * @throws InterruptedException
 	 */
 	public synchronized void subscribeOrderbook(CurrencyPair currencyPair) throws IOException, InterruptedException {
-		LOGGER.info("Subscribing to [{}].", currencyPair);
-		// Prepare and send subscription message
-		HubMessage subscriptionMessage = new HubMessage();
-		subscriptionMessage.setHubName(DEFAULT_HUB);
-		subscriptionMessage.setMethodName("SubscribeToExchangeDeltas");
-		subscriptionMessage.setArguments(Arrays.asList(toBittrexCurrencyString(currencyPair)));
-		webSocketSession.getBasicRemote().sendText(gson.toJson(subscriptionMessage));
-		
-		// Wait for response
-		LOGGER.info("Waiting for subscription response for [{}].", currencyPair);
-		responseLatch.await(100, TimeUnit.SECONDS);
-		LOGGER.info("Querying exchange state for [{}].", currencyPair);
-		// Prepare and send exchange state request
-		HubMessage exchangeStateRequest = new HubMessage();
-		exchangeStateRequest.setHubName(DEFAULT_HUB);
-		exchangeStateRequest.setMethodName("QueryExchangeState");
-		exchangeStateRequest.setArguments(Arrays.asList(toBittrexCurrencyString(currencyPair)));
-		exchangeStateRequest.setInvocationIdentifier(1);
-		webSocketSession.getBasicRemote().sendText(gson.toJson(exchangeStateRequest));
-		
-		// Wait for exchange state
-		exchangeStateLatch.await(100, TimeUnit.SECONDS);
+		subscribe(currencyPair);
 		if(exchangeState == null) {
 			LOGGER.info("ERROR: Cloud not retrieve exchange state.");
 		}
-		
+		sendToChannelHandler(currencyPair, exchangeState);
+		// Reset exchange state for next subscribtion 
+		exchangeState = null;
 	}
 	
-	public void sendToChannelHandler(CurrencyPair currencyPair, Handable handable) {
+	/**
+	 * Sends update to channelHandler.
+	 * @param currencyPair
+	 * @param update
+	 */
+	public void sendToChannelHandler(CurrencyPair currencyPair, ChannelHandlerUpdate update) {
 		if(!channelHandlers.containsKey(currencyPair)) {
 			createChannelHandler(currencyPair);
 		}
-		
-		
+		channelHandlers.get(currencyPair).feedUpdate(update);
 	}
 
 	/* private methods */
 	
+	/**
+	 * Creates new ChannelHandler.
+	 * @param currencyPair
+	 */
 	private synchronized void createChannelHandler(CurrencyPair currencyPair) {
 		if(!channelHandlers.containsKey(currencyPair)) {
-			channelHandlers.put(currencyPair, new ChannelHandler());
+			channelHandlers.put(currencyPair, ChannelHandler.createInstance());
 		}
 	}
 
@@ -335,13 +343,29 @@ public class BittrexWebsocket {
 		}
 	}
 	
-	/**
-	 * Converts currencyPair to bittrex currency string used in websocket messages.
-	 * @param currencyPair
-	 * @return
-	 */
-	private String toBittrexCurrencyString(CurrencyPair currencyPair) {
-		return currencyPair.base.toString() + "-" + currencyPair.counter.toString();
+	private void subscribe(CurrencyPair currencyPair) throws IOException, InterruptedException {
+		LOGGER.info("Subscribing to [{}].", currencyPair);
+		// Prepare and send subscription message
+		HubMessage subscriptionMessage = new HubMessage();
+		subscriptionMessage.setHubName(DEFAULT_HUB);
+		subscriptionMessage.setMethodName("SubscribeToExchangeDeltas");
+		subscriptionMessage.setArguments(Arrays.asList(toBittrexCurrencyString(currencyPair)));
+		webSocketSession.getBasicRemote().sendText(gson.toJson(subscriptionMessage));
+		
+		// Wait for response
+		LOGGER.info("Waiting for subscription response for [{}].", currencyPair);
+		responseLatch.await(100, TimeUnit.SECONDS);
+		LOGGER.info("Querying exchange state for [{}].", currencyPair);
+		// Prepare and send exchange state request
+		HubMessage exchangeStateRequest = new HubMessage();
+		exchangeStateRequest.setHubName(DEFAULT_HUB);
+		exchangeStateRequest.setMethodName("QueryExchangeState");
+		exchangeStateRequest.setArguments(Arrays.asList(toBittrexCurrencyString(currencyPair)));
+		exchangeStateRequest.setInvocationIdentifier(1);
+		webSocketSession.getBasicRemote().sendText(gson.toJson(exchangeStateRequest));
+		
+		// Wait for exchange state
+		exchangeStateLatch.await(100, TimeUnit.SECONDS);
 	}
 
 }
