@@ -46,8 +46,8 @@ public class ChannelHandler implements Runnable {
 	/* variables */
 
 	private final BinarySemaphore processUpdateSem = new BinarySemaphore(false);
-	private boolean active;
-	private boolean stop;
+	private boolean active = false;
+	private boolean stop = false;
 	private CurrencyPair currencyPair;
 	
 	private Lock queueLock = new ReentrantLock();
@@ -68,12 +68,18 @@ public class ChannelHandler implements Runnable {
 	private final TreeMap<BigDecimal, LimitOrder> asks = new TreeMap<>();
 	private final TreeMap<BigDecimal, LimitOrder> bids = new TreeMap<>((k1, k2) -> -k1.compareTo(k2));
 	
+	/* constructors */
+	
 	private ChannelHandler(CurrencyPair currencyPair) {
 		this.currencyPair = currencyPair;
 	}
 
+	/**
+	 * Update processing routine.
+	 */
 	@Override
 	public void run() {
+		active = true;
 		// TODO Auto-generated method stub
 		while (!stop) {
 			try {
@@ -84,7 +90,9 @@ public class ChannelHandler implements Runnable {
 			}
 			
 			queueLock.lock();
+			// reset orderbook
 			orderBook = null;
+			
 			if(!initalStateReceived) {
 				// Get inital state
 				ExchangeStateUpdate initalState = queue.stream().filter(update -> update.getMarketName() == null).findFirst().orElse(null);
@@ -101,15 +109,22 @@ public class ChannelHandler implements Runnable {
 					}
 				}
 			}
-			LOGGER.info("Processing Update");
+			LOGGER.info("Processing Update [{}]", currencyPair);
+			// Process updates
 			queue.forEach(update -> processUpdate(update));
+			// Clear queue
 			queue.clear();
 			queueLock.unlock();
-			broadcast();
-
+			// Broadcast new orderbook
+			broadcastOrderbook();
 		}
+		active = false;
 	}
 	
+	/**
+	 * Process inital exchange state.
+	 * @param exchangeUpdate
+	 */
 	private void processInitalState(ExchangeStateUpdate exchangeUpdate) {
 		initalStateReceived = true;
         nounce = exchangeUpdate.getNounce();
@@ -126,6 +141,10 @@ public class ChannelHandler implements Runnable {
         queue.clear();
 	}
 	
+	/**
+	 * Process exchange state update.
+	 * @param exchangeUpdate
+	 */
 	private void processUpdate(ExchangeStateUpdate exchangeUpdate) {
 		if (exchangeUpdate.getNounce() <= nounce) {
 			// nounce des updates älter als aktuelle nounce
@@ -142,7 +161,7 @@ public class ChannelHandler implements Runnable {
 			return;
 		}
 
-		// processes bids updates
+		// processes bid updates
 		BiConsumer<OrderUpdate, TreeMap<BigDecimal, LimitOrder>> bidsProcessor = (update, bids) -> {
 			switch (update.getType()) {
 			case ADD:
@@ -157,7 +176,7 @@ public class ChannelHandler implements Runnable {
 			}
 		};
 
-		// processes asks updates
+		// processes ask updates
 		BiConsumer<OrderUpdate, TreeMap<BigDecimal, LimitOrder>> asksProcessor = (update, asks) -> {
 			switch (update.getType()) {
 			case ADD:
@@ -178,7 +197,10 @@ public class ChannelHandler implements Runnable {
 
 	}
 	
-    public void broadcast() {
+	/**
+	 * Broadcasts current orderbook to all subscribers.
+	 */
+    public void broadcastOrderbook() {
     		OrderBook orderBook = getOrderBook();
 		if(!subscribers.isEmpty()) {
 //			broadcastExecutorService = Executors.newFixedThreadPool(subscribers.size());
@@ -189,6 +211,10 @@ public class ChannelHandler implements Runnable {
 		}
 	}
     
+    /**
+     * Gets current orderBook.
+     * @return
+     */
 	public OrderBook getOrderBook() {
 		OrderBook old = orderBook;
 		if (old != null) {
@@ -202,9 +228,7 @@ public class ChannelHandler implements Runnable {
 	}
 
 	/**
-	 * Static factory method that creates an ChannelHandler instance and runs it in
-	 * a new thread.
-	 * 
+	 * Static factory method that creates an ChannelHandler instance and runs it in a new thread.
 	 * @param exchange
 	 * @param basePair
 	 * @param crossPair1
@@ -248,10 +272,18 @@ public class ChannelHandler implements Runnable {
 		processUpdateSem.release();
 	}
 	
+	/**
+	 * Adds a subscriber to this ChannelHandler.
+	 * @param updateableObject
+	 */
 	public void addSubscriber(UpdateableOrderbook updateableObject) {
 		subscribers.add(updateableObject);
 	}
 
+	/**
+	 * Removes a subsciber to this ChannelHandler.
+	 * @param updateableObject
+	 */
 	public void removeSubscriber(UpdateableOrderbook updateableObject) {
 		subscribers.remove(updateableObject);
 	}
