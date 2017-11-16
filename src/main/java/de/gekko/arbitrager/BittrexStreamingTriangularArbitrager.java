@@ -2,16 +2,12 @@ package de.gekko.arbitrager;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.OrderBook;
 import org.knowm.xchange.exceptions.ExchangeException;
@@ -23,8 +19,8 @@ import org.slf4j.LoggerFactory;
 import de.gekko.concurrency.BinarySemaphore;
 import de.gekko.exception.CurrencyMismatchException;
 import de.gekko.exchanges.BittrexArbitrageExchange;
-import de.gekko.websocket.OrderBookUpdate;
-import de.gekko.websocket.UpdateableOrderbook;
+import de.gekko.websocketNew.OrderBookUpdate;
+import de.gekko.websocketNew.UpdateableOrderbook;
 import de.gekko.websocketNew.BittrexWebsocket;
 
 /**

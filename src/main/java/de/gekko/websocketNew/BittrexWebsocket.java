@@ -20,7 +20,6 @@ import org.knowm.xchange.currency.CurrencyPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import de.gekko.websocket.UpdateableOrderbook;
 import de.gekko.websocketNew.pojo.ExchangeStateUpdate;
 
 /**

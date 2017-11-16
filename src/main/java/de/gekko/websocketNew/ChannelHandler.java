@@ -26,9 +26,6 @@ import org.slf4j.LoggerFactory;
 
 import de.gekko.concurrency.BinarySemaphore;
 import de.gekko.exception.CurrencyMismatchException;
-import de.gekko.websocket.OrderBookUpdate;
-import de.gekko.websocket.UpdateableOrderbook;
-import de.gekko.websocket.ChannelHandler.WebsocketChannelState;
 import de.gekko.websocketNew.pojo.ExchangeStateUpdate;
 import de.gekko.websocketNew.pojo.OrderUpdate;
 
