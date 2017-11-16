@@ -1,6 +1,7 @@
 package de.gekko.arbitrager;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Comparator;
@@ -22,9 +23,9 @@ import org.slf4j.LoggerFactory;
 import de.gekko.concurrency.BinarySemaphore;
 import de.gekko.exception.CurrencyMismatchException;
 import de.gekko.exchanges.BittrexArbitrageExchange;
-import de.gekko.websocket.BittrexWebsocket;
 import de.gekko.websocket.OrderBookUpdate;
 import de.gekko.websocket.UpdateableOrderbook;
+import de.gekko.websocketNew.BittrexWebsocket;
 
 /**
  * Class that performs triangular arbitrage (aka. inter market arbitrage) on the Bittrex exchange.
@@ -43,10 +44,10 @@ public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager i
 	Map<CurrencyPair, ReentrantLock> locks = new HashMap<>();
 
 	private BittrexStreamingTriangularArbitrager(BittrexArbitrageExchange exchange, CurrencyPair basePair,
-			CurrencyPair crossPair1, CurrencyPair crossPair2) throws IOException, CurrencyMismatchException {
+			CurrencyPair crossPair1, CurrencyPair crossPair2) throws IOException, CurrencyMismatchException, URISyntaxException, InterruptedException {
 		super(exchange, basePair, crossPair1, crossPair2);
 		
-		BittrexWebsocket bittrexWS = new BittrexWebsocket();
+		BittrexWebsocket bittrexWebsocket = BittrexWebsocket.getInstance();
 		
 		Comparator<OrderBook> byTimeStamp = (orderBook1, orderBook2) -> {
 			if(orderBook1.getTimeStamp() != null && orderBook1.getTimeStamp() != null) {
@@ -66,7 +67,7 @@ public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager i
 			orderBookQueues.put(currencyPair, new PriorityQueue<>(byTimeStamp));
 			try {
 				System.out.println("YARP2");
-				bittrexWS.registerSubscriber(currencyPair, this);
+				bittrexWebsocket.registerSubscriber(currencyPair, this);
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -149,9 +150,11 @@ public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager i
 	 * @return
 	 * @throws IOException
 	 * @throws CurrencyMismatchException
+	 * @throws InterruptedException 
+	 * @throws URISyntaxException 
 	 */
 	public static BittrexStreamingTriangularArbitrager createInstance(BittrexArbitrageExchange exchange, CurrencyPair basePair,
-			CurrencyPair crossPair1, CurrencyPair crossPair2) throws IOException, CurrencyMismatchException {
+			CurrencyPair crossPair1, CurrencyPair crossPair2) throws IOException, CurrencyMismatchException, URISyntaxException, InterruptedException {
 		BittrexStreamingTriangularArbitrager arbitrager = new BittrexStreamingTriangularArbitrager(exchange, basePair, crossPair1, crossPair2);
 		Thread thread = new Thread(arbitrager);
 		thread.start();

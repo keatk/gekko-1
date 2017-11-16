@@ -84,10 +84,10 @@ public class ChannelHandler implements Runnable {
 			}
 			
 			queueLock.lock();
-
+			orderBook = null;
 			if(!initalStateReceived) {
 				// Get inital state
-				ExchangeStateUpdate initalState = queue.stream().filter(update -> update.getMarketName() == null).findFirst().get();
+				ExchangeStateUpdate initalState = queue.stream().filter(update -> update.getMarketName() == null).findFirst().orElse(null);
 				// Process inital state
 				if(initalState != null) {
 					LOGGER.info("inital state received");
@@ -110,21 +110,28 @@ public class ChannelHandler implements Runnable {
 		}
 	}
 	
-	private void processInitalState(ExchangeStateUpdate update) {
+	private void processInitalState(ExchangeStateUpdate exchangeUpdate) {
 		initalStateReceived = true;
-        nounce = update.getNounce();
+        nounce = exchangeUpdate.getNounce();
         bids.clear();
         asks.clear();
-        Stream.of(update.getBuys()).forEach(buy -> bids.put(buy.getRate(), new LimitOrder(Order.OrderType.BID, buy.getQuantity(), currencyPair, null, null, buy.getRate())));
-        Stream.of(update.getSells()).forEach(sell -> asks.put(sell.getRate(), new LimitOrder(Order.OrderType.ASK, sell.getQuantity(), currencyPair, null, null, sell.getRate())));
+        Stream.of(exchangeUpdate.getBuys()).forEach(buy -> bids.put(buy.getRate(), new LimitOrder(Order.OrderType.BID, buy.getQuantity(), currencyPair, null, null, buy.getRate())));
+        Stream.of(exchangeUpdate.getSells()).forEach(sell -> asks.put(sell.getRate(), new LimitOrder(Order.OrderType.ASK, sell.getQuantity(), currencyPair, null, null, sell.getRate())));
         
-        queue.forEach(this::processUpdate);
+        queue.forEach(update -> {
+        		if(update.getMarketName() != null) {
+            		processUpdate(update);
+        		}
+        });
         queue.clear();
 	}
 	
 	private void processUpdate(ExchangeStateUpdate exchangeUpdate) {
 		if (exchangeUpdate.getNounce() <= nounce) {
 			// nounce des updates älter als aktuelle nounce
+			LOGGER.info("MISSING DATA");
+			LOGGER.info("Current nounce: {}, update nounce: {}", nounce, exchangeUpdate.getNounce() );
+			System.exit(1);
 			return;
 		}
 		if (exchangeUpdate.getNounce() - nounce == 1) {
@@ -172,10 +179,11 @@ public class ChannelHandler implements Runnable {
 	}
 	
     public void broadcast() {
+    		OrderBook orderBook = getOrderBook();
 		if(!subscribers.isEmpty()) {
 //			broadcastExecutorService = Executors.newFixedThreadPool(subscribers.size());
 			subscribers.forEach(subscriber -> broadcastExecutorService.submit(
-					() -> {subscriber.receiveUpdate(new OrderBookUpdate(currencyPair, getOrderBook()));
+					() -> {subscriber.receiveUpdate(new OrderBookUpdate(currencyPair, orderBook));
 					}));
 //			broadcastExecutorService.shutdown();
 		}
@@ -239,6 +247,13 @@ public class ChannelHandler implements Runnable {
 		queueLock.unlock();
 		processUpdateSem.release();
 	}
+	
+	public void addSubscriber(UpdateableOrderbook updateableObject) {
+		subscribers.add(updateableObject);
+	}
 
+	public void removeSubscriber(UpdateableOrderbook updateableObject) {
+		subscribers.remove(updateableObject);
+	}
 
 }

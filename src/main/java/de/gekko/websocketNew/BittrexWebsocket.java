@@ -20,6 +20,7 @@ import org.knowm.xchange.currency.CurrencyPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de.gekko.websocket.UpdateableOrderbook;
 import de.gekko.websocketNew.pojo.ExchangeStateUpdate;
 
 /**
@@ -78,6 +79,21 @@ public class BittrexWebsocket {
 	public static synchronized BittrexWebsocket getInstance() {
 		if (BittrexWebsocket.instance == null) {
 			BittrexWebsocket.instance = new BittrexWebsocket();
+			try {
+				BittrexWebsocket.instance.init();
+			} catch (ClientProtocolException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (URISyntaxException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 		return BittrexWebsocket.instance;
 	}
@@ -141,6 +157,14 @@ public class BittrexWebsocket {
 		bittrexWebsocketHttp.subscribeToOrderbook(toBittrexCurrencyString(currencyPair));
 	}
 	
+	public synchronized void registerSubscriber(CurrencyPair currencyPair, UpdateableOrderbook updateableObject) throws Exception {
+		if(!channelHandlers.containsKey(currencyPair)) {
+			createChannelHandler(currencyPair);
+		}
+		channelHandlers.get(currencyPair).addSubscriber(updateableObject);
+		subscribeOrderbook(currencyPair);
+	}
+	
 	/**
 	 * Sends update to channelHandler.
 	 * @param currencyPair
@@ -166,5 +190,7 @@ public class BittrexWebsocket {
 			channelHandlers.put(currencyPair, ChannelHandler.createInstance(currencyPair));
 		}
 	}
+	
+	
 
 }
