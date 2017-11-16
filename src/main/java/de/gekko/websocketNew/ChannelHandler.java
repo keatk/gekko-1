@@ -59,7 +59,7 @@ public class ChannelHandler implements Runnable {
 	private boolean initalStateReceived = false;
 	private OrderBook orderBook = null;
 
-	private Set<UpdateableOrderbook> subscribers = new HashSet<>();
+	private Set<ReceiveOrderbook> subscribers = new HashSet<>();
 	private ExecutorService broadcastExecutorService = Executors.newFixedThreadPool(20); // TODO USE CACHED EXECUTOR	P00lZ
 
 	private final TreeMap<BigDecimal, LimitOrder> asks = new TreeMap<>();
@@ -273,7 +273,7 @@ public class ChannelHandler implements Runnable {
 	 * Adds a subscriber to this ChannelHandler.
 	 * @param updateableObject
 	 */
-	public void addSubscriber(UpdateableOrderbook updateableObject) {
+	public void addSubscriber(ReceiveOrderbook updateableObject) {
 		subscribers.add(updateableObject);
 	}
 
@@ -281,7 +281,7 @@ public class ChannelHandler implements Runnable {
 	 * Removes a subsciber to this ChannelHandler.
 	 * @param updateableObject
 	 */
-	public void removeSubscriber(UpdateableOrderbook updateableObject) {
+	public void removeSubscriber(ReceiveOrderbook updateableObject) {
 		subscribers.remove(updateableObject);
 	}
 

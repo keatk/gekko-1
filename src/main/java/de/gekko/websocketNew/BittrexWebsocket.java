@@ -156,7 +156,7 @@ public class BittrexWebsocket {
 		bittrexWebsocketHttp.subscribeToOrderbook(toBittrexCurrencyString(currencyPair));
 	}
 	
-	public synchronized void registerSubscriber(CurrencyPair currencyPair, UpdateableOrderbook updateableObject) throws Exception {
+	public synchronized void registerSubscriber(CurrencyPair currencyPair, ReceiveOrderbook updateableObject) throws Exception {
 		if(!channelHandlers.containsKey(currencyPair)) {
 			createChannelHandler(currencyPair);
 		}

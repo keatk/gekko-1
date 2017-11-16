@@ -20,7 +20,7 @@ import de.gekko.concurrency.BinarySemaphore;
 import de.gekko.exception.CurrencyMismatchException;
 import de.gekko.exchanges.BittrexArbitrageExchange;
 import de.gekko.websocketNew.OrderBookUpdate;
-import de.gekko.websocketNew.UpdateableOrderbook;
+import de.gekko.websocketNew.ReceiveOrderbook;
 import de.gekko.websocketNew.BittrexWebsocket;
 
 /**
@@ -29,7 +29,7 @@ import de.gekko.websocketNew.BittrexWebsocket;
  * @author Maximilian Pfister
  *
  */
-public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager implements Runnable, UpdateableOrderbook {
+public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager implements Runnable, ReceiveOrderbook {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(BittrexStreamingTriangularArbitrager.class);
 	

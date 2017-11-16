@@ -4,8 +4,6 @@ import java.math.BigDecimal;
 
 import com.google.gson.annotations.SerializedName;
 
-import de.gekko.websocket.UpdateType;
-
 public class OrderUpdate {
 	
     @SerializedName("Quantity")
