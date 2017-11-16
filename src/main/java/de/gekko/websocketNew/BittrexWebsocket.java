@@ -20,6 +20,8 @@ import org.knowm.xchange.currency.CurrencyPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de.gekko.websocketNew.pojo.ExchangeStateUpdate;
+
 /**
  * Connects to Bittrex Websocket endpoint using the signalR protocol.
  * 
@@ -66,7 +68,7 @@ public class BittrexWebsocket {
 		BittrexWebsocket bittrexWebsocket = BittrexWebsocket.getInstance();
 		bittrexWebsocket.init();
 		bittrexWebsocket.subscribeOrderbook(new CurrencyPair(Currency.getInstance("USDT"), Currency.getInstance("BTC")));
-		bittrexWebsocket.subscribeOrderbook(new CurrencyPair(Currency.getInstance("OMG"), Currency.getInstance("BTC")));
+//		bittrexWebsocket.subscribeOrderbook(new CurrencyPair(Currency.getInstance("ETH"), Currency.getInstance("XRP")));
 	}
 
 	/**
@@ -144,7 +146,8 @@ public class BittrexWebsocket {
 	 * @param currencyPair
 	 * @param update
 	 */
-	public void sendToChannelHandler(CurrencyPair currencyPair, ChannelHandlerUpdate update) {
+	public void sendToChannelHandler(String currencyPairBittrex, ExchangeStateUpdate update) {
+		CurrencyPair currencyPair = toCurrencyPair(currencyPairBittrex);
 		if(!channelHandlers.containsKey(currencyPair)) {
 			createChannelHandler(currencyPair);
 		}

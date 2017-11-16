@@ -1,6 +1,8 @@
 package de.gekko.websocketNew;
 
+import java.io.IOException;
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -43,7 +45,23 @@ public class BittrexWebsocketClientEndpoint extends Endpoint {
 			// .setPrettyPrinting()
 			.create();
 	private BittrexWebsocket bittrexWebsocket = BittrexWebsocket.getInstance();
+	private String currencyPair;
 	private boolean startupSuccess = false;
+	
+	public void setCurrencyPair(String currencyPair) {
+		this.currencyPair = currencyPair;
+	}
+
+	public void getExchangeState(Session session) throws IOException {
+		// Prepare and send exchange state request
+
+		HubMessage exchangeStateRequest = new HubMessage();
+		exchangeStateRequest.setHubName(BittrexWebsocket.DEFAULT_HUB);
+		exchangeStateRequest.setMethodName("QueryExchangeState");
+		exchangeStateRequest.setArguments(Arrays.asList(currencyPair));
+		exchangeStateRequest.setInvocationIdentifier(1);
+		session.getBasicRemote().sendText(gson.toJson(exchangeStateRequest));
+	}
 
 	/* public methods */
 
@@ -83,7 +101,7 @@ public class BittrexWebsocketClientEndpoint extends Endpoint {
 										JsonArray exchangeStates = gson.fromJson(jsonObject.get("A").toString(), JsonArray.class);
 										exchangeStates.forEach((exchangeStateElement)->{
 											ExchangeStateUpdate exchangeState = gson.fromJson(exchangeStateElement.toString(), ExchangeStateUpdate.class);
-											bittrexWebsocket.sendToChannelHandler(bittrexWebsocket.toCurrencyPair(exchangeState.getMarketName()), exchangeState);
+											bittrexWebsocket.sendToChannelHandler(exchangeState.getMarketName(), exchangeState);
 										});
 									} else {
 										// do something with other methods
@@ -107,17 +125,18 @@ public class BittrexWebsocketClientEndpoint extends Endpoint {
 						try {
 							ResponseMessage responseMessage = gson.fromJson(messageString, ResponseMessage.class);
 							if(responseMessage.getResponse().toString().equals("true")) {
-								//TODO IMPLEMENT RESPONSE LOCK
-								LOGGER.info("IDENTIFIER: " + responseMessage.getInvocationIdentifier().toString());
+								LOGGER.info("RESPONSE RECEIVED");
+								getExchangeState(session);
 								return;
 							} else {
-								LOGGER.info("YAAAAS");
 								ExchangeStateUpdate exchangeState = gson.fromJson(responseMessage.getResponse().toString(), ExchangeStateUpdate.class);
+								bittrexWebsocket.sendToChannelHandler(currencyPair, exchangeState);
 								return;
 							}
-						} catch (Throwable t) {
+						} catch (Exception e) {
 //							LOGGER.info("ERROR MESSAGE: " + messageString);
-							LOGGER.info(t.toString());
+//							LOGGER.info(t.toString());
+							e.printStackTrace();
 							System.exit(1);
 						}
 					}

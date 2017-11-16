@@ -77,7 +77,7 @@ public class BittrexWebsocketHttp {
 		}
 		
 		// Create new websocket session for subscription 
-		Session webSocketSession = connect(negotiationResponse);
+		Session webSocketSession = connect(negotiationResponse, currencyPair);
 		if(webSocketSession == null) {
 			LOGGER.info("ERROR: Could not create websocket session while subscribing to {}.", currencyPair);
 		} else {
@@ -144,7 +144,7 @@ public class BittrexWebsocketHttp {
 	 * Starts the websocket transport.
 	 * @throws URISyntaxException
 	 */
-	private Session connect(NegotiationResponse negotiationResponse) throws URISyntaxException {
+	private Session connect(NegotiationResponse negotiationResponse, String currencyPair) throws URISyntaxException {
 		// Create cookie strings for websocket connection if cloudflare DDOS protection is enabled
 		ArrayList<String> cookies = new ArrayList<>();
 		cookieStore.getCookies().forEach((item) -> {
@@ -180,7 +180,9 @@ public class BittrexWebsocketHttp {
 			// Connect websocket to server
 			WebSocketContainer container = ContainerProvider.getWebSocketContainer();
 			container.setDefaultMaxTextMessageBufferSize(1048576);
-			webSocketSession = container.connectToServer(BittrexWebsocketClientEndpoint.class, cec, builder.build());
+			BittrexWebsocketClientEndpoint endpoint = new BittrexWebsocketClientEndpoint();
+			endpoint.setCurrencyPair(currencyPair);
+			webSocketSession = container.connectToServer(endpoint, cec, builder.build());
 			try {
 				Thread.sleep(1000);
 			} catch (InterruptedException e) {
@@ -232,20 +234,6 @@ public class BittrexWebsocketHttp {
 		subscriptionMessage.setMethodName("SubscribeToExchangeDeltas");
 		subscriptionMessage.setArguments(Arrays.asList(currencyPair));
 		webSocketSession.getBasicRemote().sendText(gson.toJson(subscriptionMessage));
-
-		// Wait for response
-		LOGGER.info("Waiting for subscription response for [{}].", currencyPair);
-		LOGGER.info("Querying exchange state for [{}].", currencyPair);
-		// Prepare and send exchange state request
-
-		HubMessage exchangeStateRequest = new HubMessage();
-		exchangeStateRequest.setHubName(BittrexWebsocket.DEFAULT_HUB);
-		exchangeStateRequest.setMethodName("QueryExchangeState");
-		exchangeStateRequest.setArguments(Arrays.asList(currencyPair));
-		exchangeStateRequest.setInvocationIdentifier(1);
-		webSocketSession.getBasicRemote().sendText(gson.toJson(exchangeStateRequest));
-
-		LOGGER.info("EXITING subscribe " + currencyPair);
 	}
 
 }

@@ -4,9 +4,8 @@ import java.util.Arrays;
 
 import com.google.gson.annotations.SerializedName;
 
-import de.gekko.websocketNew.ChannelHandlerUpdate;
 
-public class ExchangeStateUpdate implements ChannelHandlerUpdate{
+public class ExchangeStateUpdate {
 	
     @SerializedName("MarketName")
     private String marketName;      // always null
@@ -15,10 +14,10 @@ public class ExchangeStateUpdate implements ChannelHandlerUpdate{
     private long nounce;
     
     @SerializedName("Buys")
-    private Order[] buys;
+    private OrderUpdate[] buys;
     
     @SerializedName("Sells")
-    private Order[] sells;
+    private OrderUpdate[] sells;
     
     @SerializedName("Fills")
     private Fill[] fills;
@@ -37,11 +36,11 @@ public class ExchangeStateUpdate implements ChannelHandlerUpdate{
 		return nounce;
 	}
 
-	public Order[] getBuys() {
+	public OrderUpdate[] getBuys() {
 		return buys;
 	}
 
-	public Order[] getSells() {
+	public OrderUpdate[] getSells() {
 		return sells;
 	}
 
