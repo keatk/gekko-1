@@ -8,6 +8,7 @@ import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,7 @@ public class ChannelHandler implements Runnable {
 	private final BinarySemaphore processUpdateSem = new BinarySemaphore(false);
 	private boolean active;
 	private boolean stop;
+	private CurrencyPair currencyPair;
 
 	private Set<UpdateableOrderbook> subscribers = new HashSet<>();
 	private ExecutorService broadcastExecutorService = Executors.newFixedThreadPool(20); // TODO USE CACHED EXECUTOR																					// POOLS
@@ -39,8 +41,8 @@ public class ChannelHandler implements Runnable {
 	private final TreeMap<BigDecimal, LimitOrder> asks = new TreeMap<>();
 	private final TreeMap<BigDecimal, LimitOrder> bids = new TreeMap<>((k1, k2) -> -k1.compareTo(k2));
 	
-	private ChannelHandler() {
-		
+	private ChannelHandler(CurrencyPair currencyPair) {
+		this.currencyPair = currencyPair;
 	}
 
 	@Override
@@ -68,8 +70,8 @@ public class ChannelHandler implements Runnable {
 	 * @throws IOException
 	 * @throws CurrencyMismatchException
 	 */
-	public static ChannelHandler createInstance() {
-		ChannelHandler channelHandler = new ChannelHandler();
+	public static ChannelHandler createInstance(CurrencyPair currencyPair) {
+		ChannelHandler channelHandler = new ChannelHandler(currencyPair);
 		Thread thread = new Thread(channelHandler);
 		thread.start();
 		return channelHandler;
@@ -97,7 +99,8 @@ public class ChannelHandler implements Runnable {
 	 * @param update
 	 */
 	public void feedUpdate(ChannelHandlerUpdate update) {
-		LOGGER.info("Received: " + update.toString());
+		LOGGER.info("Received update: " + currencyPair);
 	}
+
 
 }

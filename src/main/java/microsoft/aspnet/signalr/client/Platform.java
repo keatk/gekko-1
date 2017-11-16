@@ -8,6 +8,7 @@ package microsoft.aspnet.signalr.client;
 
 import java.util.Locale;
 
+import de.gekko.websocket.BittrexWebsocket;
 import microsoft.aspnet.signalr.client.http.HttpConnection;
 import microsoft.aspnet.signalr.client.http.java.JavaHttpConnection;
 
@@ -54,9 +55,7 @@ public class Platform {
             osName = System.getProperty("os.name").toLowerCase(Locale.getDefault());
         }
         String userAgent = String.format("SignalR (lang=Java; os=%s; version=2.0)", osName);
-        
-        userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:56.0) Gecko/20100101 Firefox/56.0";
 
-        return userAgent;
+        return BittrexWebsocket.USER_AGENT;
     }
 }

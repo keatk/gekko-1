@@ -30,30 +30,28 @@ import de.gekko.websocketNew.pojo.ResponseMessage;
  *
  */
 public class BittrexWebsocketClientEndpoint extends Endpoint {
-	
+
+	public static boolean LOG = false;
+
 	/* constants */
-	
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(BittrexWebsocketClientEndpoint.class);
-	
+
 	/* variables */
-	
+
 	private Gson gson = new GsonBuilder()
 			// .setPrettyPrinting()
 			.create();
 	private BittrexWebsocket bittrexWebsocket = BittrexWebsocket.getInstance();
 	private boolean startupSuccess = false;
-	private 	ExecutorService messageExecutor = Executors.newSingleThreadExecutor();
-	
+
 	/* public methods */
-	
+
 	@Override
 	public void onOpen(Session session, EndpointConfig config) {
 		System.out.println("Connected to server");
 		session.addMessageHandler(new MessageHandler.Whole<String>() {
 			public void onMessage(String messageString) {
-
-				// Handle messages concurrently
-				messageExecutor.submit(() -> {
 					// Check if keep alive message
 					if (messageString.length() < 3) {
 						LOGGER.info("KeepAliveMessage");
@@ -62,13 +60,13 @@ public class BittrexWebsocketClientEndpoint extends Endpoint {
 					}
 					// Check if PersistentConnectionMessage
 					if (messageString.charAt(2) == 'C') {
-						LOGGER.info("PersistentConnectionMessage");
+//						LOGGER.info("PersistentConnectionMessage");
 						PersistentConnectionMessage message = gson.fromJson(messageString, PersistentConnectionMessage.class);
 						
 						// Check for startup message
 						if (!startupSuccess) {
 							if (message.getTransportStartFlag() == 1) {
-								bittrexWebsocket.getStartupLatch().countDown();
+//								bittrexWebsocket.getStartupLatch().countDown();
 								return;
 							}
 						}
@@ -91,6 +89,7 @@ public class BittrexWebsocketClientEndpoint extends Endpoint {
 										// do something with other methods
 									}
 								});
+								return;
 							} catch (Exception e) {
 								LOGGER.info(message.getMessageData().toString());
 								LOGGER.info(e.toString());
@@ -108,24 +107,29 @@ public class BittrexWebsocketClientEndpoint extends Endpoint {
 						try {
 							ResponseMessage responseMessage = gson.fromJson(messageString, ResponseMessage.class);
 							if(responseMessage.getResponse().toString().equals("true")) {
-								bittrexWebsocket.getResponseLatch().countDown();
+								//TODO IMPLEMENT RESPONSE LOCK
+								LOGGER.info("IDENTIFIER: " + responseMessage.getInvocationIdentifier().toString());
 								return;
 							} else {
+								LOGGER.info("YAAAAS");
 								ExchangeStateUpdate exchangeState = gson.fromJson(responseMessage.getResponse().toString(), ExchangeStateUpdate.class);
-								bittrexWebsocket.setExchangeState(exchangeState);
-								bittrexWebsocket.getExchangeStateLatch().countDown();
 								return;
 							}
 						} catch (Throwable t) {
+//							LOGGER.info("ERROR MESSAGE: " + messageString);
 							LOGGER.info(t.toString());
-							LOGGER.info(messageString);
 							System.exit(1);
 						}
 					}
-					
-				});
-			}
-		});
+					if (messageString.charAt(2) == 'I') {
+						LOGGER.info(messageString);
+						JsonObject jsonOb = gson.fromJson(messageString, JsonObject.class);
+						return;
+					}
+					LOGGER.info(messageString);
+				}
+			});
+
 	}
 
 }

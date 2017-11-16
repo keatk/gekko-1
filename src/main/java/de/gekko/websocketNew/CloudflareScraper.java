@@ -2,6 +2,7 @@ package de.gekko.websocketNew;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -149,6 +150,7 @@ public class CloudflareScraper {
 //		System.out.println(builder.build().toString());
 		
 		HttpGet request = new HttpGet(builder.build());
+
 		request.setHeader(HttpHeaders.REFERER, "http://" + domain + "/");
 
 		// Send answer request

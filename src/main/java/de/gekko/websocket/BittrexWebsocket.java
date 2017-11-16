@@ -1,6 +1,11 @@
 package de.gekko.websocket;
 
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -14,13 +19,24 @@ import java.util.stream.Collectors;
 import microsoft.aspnet.signalr.client.ConnectionState;
 import microsoft.aspnet.signalr.client.LogLevel;
 import microsoft.aspnet.signalr.client.SignalRFuture;
+import microsoft.aspnet.signalr.client.http.CookieCredentials;
 import microsoft.aspnet.signalr.client.hubs.HubConnection;
 import microsoft.aspnet.signalr.client.hubs.HubProxy;
 import microsoft.aspnet.signalr.client.transport.WebsocketTransport;
 
+import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.CookieStore;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.impl.client.BasicCookieStore;
+import org.apache.http.impl.client.HttpClients;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import de.gekko.websocketNew.CloudflareScraper;
 
 /**
  * Credits: Originally developed by André Reiter (https://github.com/andre77/bittrex-ws-java).
@@ -35,7 +51,8 @@ public class BittrexWebsocket {
     private static final Logger LOG = LoggerFactory.getLogger(BittrexWebsocket.class);
 
     private static final String DEFAULT_SERVER_URL = "https://www.bittrex.com";
-    
+    private static final String DEFAULT_SERVER_DOMAIN = "bittrex.com";
+    public static final String USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:56.0) Gecko/20100101 Firefox/56.0";
     
     private static final microsoft.aspnet.signalr.client.Logger logger = (message, level) -> {
         // ignore all levels but critical
@@ -52,6 +69,8 @@ public class BittrexWebsocket {
     private Map<String, ChannelHandler> handlers = new ConcurrentHashMap<>();
     
     Map<CurrencyPair, Object> locks = new ConcurrentHashMap<>();
+    
+    public static Map<String,String> httpHeaders;
 
     private Date connectionTimestamp;
     private WebsocketState state = WebsocketState.DISCONNECTED;
@@ -61,7 +80,41 @@ public class BittrexWebsocket {
     }
     
     
-    private void init() throws InterruptedException, ExecutionException {
+    private void init() throws InterruptedException, ExecutionException, URISyntaxException, ClientProtocolException, IOException {
+    		CookieStore cookieStore = new BasicCookieStore();
+    		HttpClient httpClient = HttpClients.custom().setUserAgent(USER_AGENT).setDefaultCookieStore(cookieStore).build();
+		CloudflareScraper scraper = new CloudflareScraper(httpClient);
+
+		// Check for Cloudflare DDOS protection
+		URIBuilder builder = new URIBuilder();
+		builder.setScheme("https").setHost(DEFAULT_SERVER_DOMAIN);
+
+		HttpGet httpGet = new HttpGet(builder.build());
+
+		HttpResponse response = httpClient.execute(httpGet);
+		
+		final CookieCredentials cookieCredentials = new CookieCredentials();
+		if (response.getStatusLine().getStatusCode() == 503) {
+			// Bypass Cloudflare DDOS protection
+			scraper.checkAndSolve(response, DEFAULT_SERVER_DOMAIN);
+			
+			// Create cookie strings for websocket connection if cloudflare DDOS protection is enabled
+			ArrayList<String> cookies = new ArrayList<>();
+			cookieStore.getCookies().forEach((item) -> {
+				if(item.getName().equals("__cfduid") || item.getName().equals("cf_clearance")) {
+					String cookieString = item.getName() + "=" + item.getValue();
+					cookieCredentials.addCookie(item.getName(), item.getValue());
+				}
+			});
+			
+			String cookiesString = cookies.get(0) + "; " + cookies.get(1);
+			httpHeaders = new HashMap<>();
+			httpHeaders.put("Cookie", cookiesString);
+			httpHeaders.put("User-Agent", USER_AGENT);
+			
+		}
+    	
+    	
         LOG.info("BittrexWS: Going to (re)connect.");
         handlers.clear();
         if (connection != null) {
@@ -72,6 +125,8 @@ public class BittrexWebsocket {
         connectionTimestamp = null;
         state = WebsocketState.CONNECTING;
         connection = new HubConnection(DEFAULT_SERVER_URL, null, true, logger);
+        connection.setCredentials(cookieCredentials);
+ 
         connection.error(error -> LOG.warn("There was an error communicating with the server.", error));
         connection.connected(() -> {
             LOG.info("Connecton started");
