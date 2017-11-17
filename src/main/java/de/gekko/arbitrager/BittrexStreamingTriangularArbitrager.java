@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import de.gekko.concurrency.BinarySemaphore;
 import de.gekko.exception.CurrencyMismatchException;
 import de.gekko.exchanges.BittrexArbitrageExchange;
+import de.gekko.wallet.AsyncWalletProvider;
 import de.gekko.websocketNew.OrderBookUpdate;
 import de.gekko.websocketNew.ReceiveOrderbook;
 import de.gekko.websocketNew.BittrexWebsocket;
@@ -39,9 +40,9 @@ public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager i
 	Map<CurrencyPair, PriorityQueue<OrderBook>> orderBookQueues = new HashMap<>();	
 	Map<CurrencyPair, ReentrantLock> locks = new HashMap<>();
 
-	private BittrexStreamingTriangularArbitrager(BittrexArbitrageExchange exchange, CurrencyPair basePair,
-			CurrencyPair crossPair1, CurrencyPair crossPair2) throws IOException, CurrencyMismatchException, URISyntaxException, InterruptedException {
-		super(exchange, basePair, crossPair1, crossPair2);
+	private BittrexStreamingTriangularArbitrager(BittrexArbitrageExchange exchange, AsyncWalletProvider walletProvider, CurrencyPair basePair,
+			CurrencyPair crossPair1, CurrencyPair crossPair2, double MAX_TRADE_AMOUNT) throws IOException, CurrencyMismatchException, URISyntaxException, InterruptedException {
+		super(exchange, walletProvider, basePair, crossPair1, crossPair2, MAX_TRADE_AMOUNT);
 		
 		BittrexWebsocket bittrexWebsocket = BittrexWebsocket.getInstance();
 		
@@ -149,9 +150,9 @@ public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager i
 	 * @throws InterruptedException 
 	 * @throws URISyntaxException 
 	 */
-	public static BittrexStreamingTriangularArbitrager createInstance(BittrexArbitrageExchange exchange, CurrencyPair basePair,
-			CurrencyPair crossPair1, CurrencyPair crossPair2) throws IOException, CurrencyMismatchException, URISyntaxException, InterruptedException {
-		BittrexStreamingTriangularArbitrager arbitrager = new BittrexStreamingTriangularArbitrager(exchange, basePair, crossPair1, crossPair2);
+	public static BittrexStreamingTriangularArbitrager createInstance(BittrexArbitrageExchange exchange, AsyncWalletProvider walletProvider, CurrencyPair basePair,
+			CurrencyPair crossPair1, CurrencyPair crossPair2, double MAX_TRADE_AMOUNT) throws IOException, CurrencyMismatchException, URISyntaxException, InterruptedException {
+		BittrexStreamingTriangularArbitrager arbitrager = new BittrexStreamingTriangularArbitrager(exchange, walletProvider, basePair, crossPair1, crossPair2, MAX_TRADE_AMOUNT);
 		Thread thread = new Thread(arbitrager);
 		thread.start();
 		return arbitrager;

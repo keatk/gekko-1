@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import de.gekko.exception.CurrencyMismatchException;
 import de.gekko.exchanges.AbstractArbitrageExchange;
+import de.gekko.wallet.AsyncWalletProvider;
 
 /**
  * Class that performs triangular arbitrage (aka. inter market arbitrage).
@@ -30,6 +31,8 @@ import de.gekko.exchanges.AbstractArbitrageExchange;
  *
  */
 public class TriangularArbitrager {
+	
+	private double MAX_TRADE_AMOUNT; //based on base of baseCurrencyPair
 	
 	private int arbitCounter = 0;
 	private boolean debug = true;
@@ -58,6 +61,7 @@ public class TriangularArbitrager {
 	private CurrencyPair crossPair2;
 	private boolean twistCrossPair2 = false;
 	
+	private AsyncWalletProvider walletProvider;
 	private Map<Currency, Double> balanceMap = new HashMap<>();
 	
 	/**
@@ -67,18 +71,19 @@ public class TriangularArbitrager {
 	
 	boolean updateWallets = true;
 	
-	public TriangularArbitrager(AbstractArbitrageExchange exchange, CurrencyPair basePair,
-			CurrencyPair crossPair1, CurrencyPair crossPair2) throws IOException, CurrencyMismatchException {
+	public TriangularArbitrager(AbstractArbitrageExchange exchange, AsyncWalletProvider walletProvider, CurrencyPair basePair,
+			CurrencyPair crossPair1, CurrencyPair crossPair2, double MAX_TRADE_AMOUNT) throws IOException, CurrencyMismatchException {
 		
 		this.exchange = exchange;
+		this.MAX_TRADE_AMOUNT = MAX_TRADE_AMOUNT;
 		this.basePair = basePair;
 		this.crossPair1 = crossPair1;
 		this.crossPair2 = crossPair2;
 		alignCurrencyPairs();
 
 		updateWallet();
-//		System.out.println(twistCrossPair1);
-//		System.out.println(twistCrossPair2);
+		System.out.println(twistCrossPair1);
+		System.out.println(twistCrossPair2);
 
 	}
 
@@ -181,7 +186,7 @@ public class TriangularArbitrager {
 		return aligned;
 	}
 	
-	public void triangularArbitrage() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
+	public void restApitriangularArbitrage() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
 		updateOrderbooks();
 		
 		if(triangularArbitrage1(orderBook1, orderBook2, orderBook3)){
@@ -208,18 +213,26 @@ public class TriangularArbitrager {
 		boolean ret = false;
 		// Get bids and asks
 		double basePairPrice = baseOrderBook.getBids().get(0).getLimitPrice().doubleValue();
+		double basePairVolume = baseOrderBook.getBids().get(0).getOriginalAmount().doubleValue();
 		double crossPair1Price;
+		double crossPair1Volume;
 		double crossPair2Price;
+		double crossPair2Volume;
 		if(twistCrossPair1){
 			crossPair1Price = cross1Orderbook.getBids().get(0).getLimitPrice().doubleValue();
+			crossPair1Volume = cross1Orderbook.getBids().get(0).getOriginalAmount().doubleValue();
 		} else {
 			crossPair1Price = cross1Orderbook.getAsks().get(0).getLimitPrice().doubleValue();
+			crossPair1Volume = cross1Orderbook.getAsks().get(0).getOriginalAmount().doubleValue();
 		}
 		if(twistCrossPair2){
 			crossPair2Price = cross2Orderbook.getBids().get(0).getLimitPrice().doubleValue();
+			crossPair2Volume = cross2Orderbook.getBids().get(0).getOriginalAmount().doubleValue();
 		} else {
 			crossPair2Price = cross2Orderbook.getAsks().get(0).getLimitPrice().doubleValue();
+			crossPair2Volume = cross2Orderbook.getAsks().get(0).getOriginalAmount().doubleValue();
 		}
+		LOGGER.info(basePairPrice + " : " + basePairVolume);
 
 		// Calculate cross exchangerate and arbitrage
 		double crossExchangeRate;
@@ -234,58 +247,88 @@ public class TriangularArbitrager {
 		LOGGER.info("BID: {} [{}/{}] -- ASK: {} [X {}/{}] -- ARBITRAGE = {}", basePairPrice, basePair.base.toString(), basePair.counter.toString(), String.format("%.8f", crossExchangeRate), crossPair1.counter.toString(), crossPair2.counter.toString(), arb);
 
 		
-		if(debug){
-			// Simulated trading for debugging and testing
-			LOGGER.info("=== DEBUG TRADE #1 ===");
-			double tradeAmount = 1;
-			// Base pair
-			double sellAmountBasePair = tradeAmount;
-			double buyAmountBasePair = sellAmountBasePair*basePairPrice;
-			LOGGER.info("Sell {}: {} for {}: {}", basePair.base, formatDecimals(sellAmountBasePair), basePair.counter, formatDecimals(buyAmountBasePair));
-			
-			// Cross pair 2
-			double sellAmountCrossPair2;
-			double buyAmountCrossPair2;
-			if(twistCrossPair2) {
-				sellAmountCrossPair2 = sellAmountBasePair*basePairPrice;
-				buyAmountCrossPair2 = sellAmountCrossPair2*crossPair2Price;
-				LOGGER.info("Sell {}: {} for {}: {}", crossPair2.base, formatDecimals(sellAmountCrossPair2), crossPair2.counter, formatDecimals(buyAmountCrossPair2));
-			} else {
-				sellAmountCrossPair2 = sellAmountBasePair*basePairPrice;
-				buyAmountCrossPair2 = sellAmountCrossPair2/crossPair2Price;
-				LOGGER.info("Sell {}: {} for {}: {}", crossPair2.counter, formatDecimals(sellAmountCrossPair2), crossPair2.base, formatDecimals(buyAmountCrossPair2));
-			}
-			
-			// Cross pair 1
-			double sellAmountCrossPair1;
-			double buyAmountCrossPair1;
-			if(twistCrossPair1) {
-				sellAmountCrossPair1 = sellAmountCrossPair2/crossPair2Price;
-				buyAmountCrossPair1 = sellAmountCrossPair1*crossPair1Price;
-				LOGGER.info("Sell {}: {} for {}: {}", crossPair1.base, formatDecimals(sellAmountCrossPair1), crossPair1.counter, formatDecimals(buyAmountCrossPair1));
-			} else {
-				sellAmountCrossPair1 = sellAmountCrossPair2*crossPair2Price;
-				buyAmountCrossPair1 = sellAmountCrossPair1/crossPair1Price;
-				LOGGER.info("Sell {}: {} for {}: {}", crossPair1.counter, formatDecimals(sellAmountCrossPair1), crossPair1.base, formatDecimals(buyAmountCrossPair1));
-			}
-
-			LOGGER.info("DEBUG ARBITRAGE = {}", (buyAmountCrossPair1/sellAmountBasePair -1)*100);
-
-			// if arbitrage chance exists set return value to true
-			if ((arb - 0.75) > 0) {
-				ret = true;
-			}
-			
-		} else {
+//		if(debug){
+//			// Simulated trading for debugging and testing
+//			LOGGER.info("=== DEBUG TRADE #1 ===");
+//			double tradeAmount = 1;
+//			// Base pair
+//			double sellAmountBasePair = tradeAmount;
+//			double buyAmountBasePair = sellAmountBasePair*basePairPrice;
+//			LOGGER.info("Sell {}: {} for {}: {}", basePair.base, formatDecimals(sellAmountBasePair), basePair.counter, formatDecimals(buyAmountBasePair));
+//			
+//			// Cross pair 2
+//			double sellAmountCrossPair2;
+//			double buyAmountCrossPair2;
+//			if(twistCrossPair2) {
+//				sellAmountCrossPair2 = sellAmountBasePair*basePairPrice;
+//				buyAmountCrossPair2 = sellAmountCrossPair2*crossPair2Price;
+//				LOGGER.info("Sell {}: {} for {}: {}", crossPair2.base, formatDecimals(sellAmountCrossPair2), crossPair2.counter, formatDecimals(buyAmountCrossPair2));
+//			} else {
+//				sellAmountCrossPair2 = sellAmountBasePair*basePairPrice;
+//				buyAmountCrossPair2 = sellAmountCrossPair2/crossPair2Price;
+//				LOGGER.info("Sell {}: {} for {}: {}", crossPair2.counter, formatDecimals(sellAmountCrossPair2), crossPair2.base, formatDecimals(buyAmountCrossPair2));
+//			}
+//			
+//			// Cross pair 1
+//			double sellAmountCrossPair1;
+//			double buyAmountCrossPair1;
+//			if(twistCrossPair1) {
+//				sellAmountCrossPair1 = sellAmountCrossPair2/crossPair2Price;
+//				buyAmountCrossPair1 = sellAmountCrossPair1*crossPair1Price;
+//				LOGGER.info("Sell {}: {} for {}: {}", crossPair1.base, formatDecimals(sellAmountCrossPair1), crossPair1.counter, formatDecimals(buyAmountCrossPair1));
+//			} else {
+//				sellAmountCrossPair1 = sellAmountCrossPair2*crossPair2Price;
+//				buyAmountCrossPair1 = sellAmountCrossPair1/crossPair1Price;
+//				LOGGER.info("Sell {}: {} for {}: {}", crossPair1.counter, formatDecimals(sellAmountCrossPair1), crossPair1.base, formatDecimals(buyAmountCrossPair1));
+//			}
+//
+//			LOGGER.info("DEBUG ARBITRAGE = {}", (buyAmountCrossPair1/sellAmountBasePair -1)*100);
+//
+//			// if arbitrage chance exists set return value to true
+//			if ((arb - 0.75) > 0) {
+//				ret = true;
+//			}
+//			
+//		} else {
 			if ((arb - 0.75) > 0) {
 				System.out.println("=====> Arbitrage (with fees): " + String.format("%.8f", arb - 0.75));
+				
+				double basePairAmount;
+				synchronized(walletProvider) {
+					basePairAmount = getTradeableAmount(basePair.base, MAX_TRADE_AMOUNT, basePairVolume); //BTC
+					
+					double crossPair1Amount = 0;
+					if(twistCrossPair1) {
 
-				double tradeAmount = 0.01;
+					} else {
+						crossPair1Amount = getTradeableAmount(crossPair1.base, basePairAmount/basePairPrice, crossPair1Volume); //ETH
+						if(basePairAmount > crossPair1Amount*basePairPrice) {
+							basePairAmount = crossPair1Amount*basePairPrice;
+						}
+					}
+					
+					double crossPair2Amount = 0;
+					if(twistCrossPair2) {
+						crossPair2Amount = getTradeableAmount(crossPair2.counter, basePairAmount/crossPair2Price, crossPair1Volume); //OMG
+						if(basePairAmount > crossPair2Amount*crossPair2Price) {
+							basePairAmount = crossPair2Amount*crossPair2Price;
+							crossPair1Amount = basePairAmount/basePairPrice;
+						}
+					}
+
+				}
 
 				// Set up order for base pair
-				double sellAmountBasePair = tradeAmount;
+				double sellAmountBasePair = basePairAmount;
 				Callable<String> callable_orderBasePair = () -> {
-					return exchange.placeLimitOrderAsk(basePair, basePairPrice, sellAmountBasePair);
+					String baseTrade;
+					try {
+						baseTrade = exchange.placeLimitOrderAsk(basePair, basePairPrice, sellAmountBasePair);
+					} catch (Exception e) {
+						e.printStackTrace();
+						baseTrade = exchange.placeLimitOrderBid(new CurrencyPair(basePair.counter, basePair.base), basePairPrice, sellAmountBasePair);
+					}
+					return baseTrade;
 				};
 
 				
@@ -294,11 +337,26 @@ public class TriangularArbitrager {
 				Callable<String> callable_orderCrossPair2;
 				if(twistCrossPair2) {
 					callable_orderCrossPair2 = () -> {
-						return exchange.placeLimitOrderBid(crossPair2, crossPair2Price, sellAmountCrossPair2);
+						String cross2Trade;
+						try {
+							cross2Trade = exchange.placeLimitOrderBid(crossPair2, crossPair2Price, sellAmountCrossPair2);
+						} catch (Exception e) {
+							e.printStackTrace();
+							cross2Trade = exchange.placeLimitOrderAsk(new CurrencyPair(crossPair2.counter, crossPair2.base), crossPair2Price, sellAmountCrossPair2);
+						}
+						return cross2Trade;
 					};
 				} else {
 					callable_orderCrossPair2 = () -> {
-						return exchange.placeLimitOrderAsk(crossPair2, crossPair2Price, sellAmountCrossPair2);
+						String cross2Trade;
+						try {
+							cross2Trade = exchange.placeLimitOrderAsk(crossPair2, crossPair2Price, sellAmountCrossPair2);
+						} catch (Exception e) {
+							e.printStackTrace();
+							cross2Trade = exchange.placeLimitOrderBid(new CurrencyPair(crossPair2.counter, crossPair2.base), crossPair2Price, sellAmountCrossPair2);
+						}
+						return cross2Trade;
+
 					};
 				}
 				
@@ -308,12 +366,26 @@ public class TriangularArbitrager {
 				if(twistCrossPair1) {
 					double sellAmountCrossPair1 = sellAmountCrossPair2/crossPair2Price;
 					callable_orderCrossPair1 = () -> {
-						return exchange.placeLimitOrderBid(crossPair1, crossPair1Price, sellAmountCrossPair1);
+						String cross1Trade;
+						try {
+							cross1Trade = exchange.placeLimitOrderBid(crossPair1, crossPair1Price, sellAmountCrossPair1);
+						} catch (Exception e) {
+							e.printStackTrace();
+							cross1Trade = exchange.placeLimitOrderAsk(new CurrencyPair(crossPair2.counter, crossPair2.base), crossPair1Price, sellAmountCrossPair1);
+						}
+						return cross1Trade;
 					};	
 				} else {
 					double sellAmountCrossPair1 = sellAmountCrossPair2*crossPair2Price;
 					callable_orderCrossPair1 = () -> {
-						return exchange.placeLimitOrderAsk(crossPair1, crossPair1Price, sellAmountCrossPair1);
+						String cross1Trade;
+						try {
+							cross1Trade = exchange.placeLimitOrderAsk(crossPair1, crossPair1Price, sellAmountCrossPair1);
+						} catch (Exception e) {
+							e.printStackTrace();
+							cross1Trade = exchange.placeLimitOrderBid(new CurrencyPair(crossPair2.counter, crossPair2.base), crossPair1Price, sellAmountCrossPair1);
+						}
+						return cross1Trade;
 					};	
 				}
 				
@@ -343,47 +415,50 @@ public class TriangularArbitrager {
 					System.err.println("Fatal trade error, terminating application.");
 					System.exit(1);
 				}
+				updateWallet();
+				System.exit(0);
 				ret = true;
 			}
+			return ret;
 		}
-		return ret;
-	}
+//		return ret;
+//	}
 	
 	public boolean triangularArbitrage2(OrderBook baseOrderBook, OrderBook cross1Orderbook, OrderBook cross2Orderbook) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
 		// Return value
 		boolean ret = false;
 		
-		double currencyPair1Price = baseOrderBook.getAsks().get(0).getLimitPrice().doubleValue();
-		double currencyPair2Price;
-		double currencyPair3Price;
+		double basePairPrice = baseOrderBook.getAsks().get(0).getLimitPrice().doubleValue();
+		double crossPair1Price;
+		double crossPair2Price;
 		if(twistCrossPair1){
-			currencyPair2Price = cross1Orderbook.getAsks().get(0).getLimitPrice().doubleValue();
+			crossPair1Price = cross1Orderbook.getAsks().get(0).getLimitPrice().doubleValue();
 		} else {
-			currencyPair2Price = cross1Orderbook.getBids().get(0).getLimitPrice().doubleValue();
+			crossPair1Price = cross1Orderbook.getBids().get(0).getLimitPrice().doubleValue();
 		}
 		if(twistCrossPair1){
-			currencyPair3Price = cross2Orderbook.getAsks().get(0).getLimitPrice().doubleValue();
+			crossPair2Price = cross2Orderbook.getAsks().get(0).getLimitPrice().doubleValue();
 		} else {
-			currencyPair3Price = cross2Orderbook.getBids().get(0).getLimitPrice().doubleValue();
+			crossPair2Price = cross2Orderbook.getBids().get(0).getLimitPrice().doubleValue();
 		}
 		
 		// Calculate cross exchangerate and arbitrage
 		double crossExchangeRate;
 		if(twistCrossPair1){
-			crossExchangeRate = (1/currencyPair2Price)*currencyPair3Price;
+			crossExchangeRate = (1/crossPair1Price)*crossPair2Price;
 		} else {
-			crossExchangeRate = currencyPair2Price*(1/currencyPair3Price);
+			crossExchangeRate = crossPair1Price*(1/crossPair2Price);
 		}
-		double arb = (crossExchangeRate/currencyPair1Price -1)*100;
+		double arb = (crossExchangeRate/basePairPrice -1)*100;
 
-		LOGGER.info("ASK: {} [{}/{}] -- BID: {} [X {}/{}] -- ARBITRAGE = {}", currencyPair1Price, basePair.base.toString(), basePair.counter.toString(), String.format("%.8f", crossExchangeRate), crossPair1.counter.toString(), crossPair2.counter.toString(), arb);
+		LOGGER.info("ASK: {} [{}/{}] -- BID: {} [X {}/{}] -- ARBITRAGE = {}", basePairPrice, basePair.base.toString(), basePair.counter.toString(), String.format("%.8f", crossExchangeRate), crossPair1.counter.toString(), crossPair2.counter.toString(), arb);
 
 		if(debug){
 			// Simulated trading for debugging and testing
 			LOGGER.info("=== DEBUG TRADE #2 ===");
 			double tradeAmount = 1;
 			// Base pair
-			double sellBasePair = tradeAmount*currencyPair1Price;
+			double sellBasePair = tradeAmount*basePairPrice;
 			double buyBasePair = tradeAmount;
 			LOGGER.info("Sell {}: {} for {}: {}", basePair.counter, formatDecimals(sellBasePair), basePair.base, formatDecimals(buyBasePair));
 			
@@ -392,11 +467,11 @@ public class TriangularArbitrager {
 			double buyCrossPair1;
 			if(twistCrossPair1) {
 				sellCrossPair1 = tradeAmount;
-				buyCrossPair1 = sellCrossPair1/currencyPair2Price;
+				buyCrossPair1 = sellCrossPair1/crossPair1Price;
 				LOGGER.info("Sell {}: {} for {}: {}", crossPair1.counter, formatDecimals(sellCrossPair1), crossPair1.base, formatDecimals(buyCrossPair1));
 			} else {
 				sellCrossPair1 = tradeAmount;
-				buyCrossPair1 = sellCrossPair1*currencyPair2Price;
+				buyCrossPair1 = sellCrossPair1*crossPair1Price;
 				LOGGER.info("Sell {}: {} for {}: {}", crossPair1.base, formatDecimals(sellCrossPair1), crossPair1.counter, formatDecimals(buyCrossPair1));
 			}
 
@@ -404,12 +479,12 @@ public class TriangularArbitrager {
 			double sellCrossPair2;
 			double buyCrossPair2;
 			if(twistCrossPair2) {
-				sellCrossPair2 = sellCrossPair1*currencyPair2Price;
-				buyCrossPair2 = sellCrossPair2/currencyPair3Price;
+				sellCrossPair2 = sellCrossPair1*crossPair1Price;
+				buyCrossPair2 = sellCrossPair2/crossPair2Price;
 				LOGGER.info("Sell {}: {} for {}: {}", crossPair2.counter, formatDecimals(sellCrossPair2), crossPair2.base, formatDecimals(buyCrossPair2));
 			} else {
-				sellCrossPair2 = sellCrossPair1/currencyPair2Price;
-				buyCrossPair2 = sellCrossPair2*currencyPair3Price;
+				sellCrossPair2 = sellCrossPair1/crossPair1Price;
+				buyCrossPair2 = sellCrossPair2*crossPair2Price;
 				LOGGER.info("Sell {}: {} for {}: {}", crossPair2.base, formatDecimals(sellCrossPair2), crossPair2.counter, formatDecimals(buyCrossPair2));
 			}
 			
@@ -427,14 +502,14 @@ public class TriangularArbitrager {
 			double tradeAmount = 0.01;
 			
 			Callable<String> callable_order1 = () -> {
-				return exchange.placeLimitOrderBid(basePair, currencyPair1Price, tradeAmount); // ETH für BTC kaufen
+				return exchange.placeLimitOrderBid(basePair, basePairPrice, tradeAmount); // ETH für BTC kaufen
 			};
 
 			Callable<String> callable_order2 = () -> {
-				return exchange.placeLimitOrderBid(crossPair1, currencyPair2Price, (tradeAmount/currencyPair2Price)); //NEO für ETH verkaufen
+				return exchange.placeLimitOrderBid(crossPair1, crossPair1Price, (tradeAmount/crossPair1Price)); //NEO für ETH verkaufen
 			};
 			Callable<String> callable_order3 = () -> {
-				return exchange.placeLimitOrderAsk(crossPair2, currencyPair3Price, tradeAmount*currencyPair1Price); //NEO für BTC kaufen
+				return exchange.placeLimitOrderAsk(crossPair2, crossPair2Price, tradeAmount*basePairPrice); //NEO für BTC kaufen
 			};
 
 //			Future<String> future_order1 = networkExecutorService.submit(callable_order1);
@@ -585,5 +660,24 @@ public class TriangularArbitrager {
 	
 	public String formatDecimals(double doubleVal) {
 		return String.format("%." + exchange.getDecimals() + "f", doubleVal);
+	}
+	
+	/**
+	 * Get the tradeableAmount of a currency depending on arbitrageAmount and walletAmount;
+	 * @param currency
+	 * @param requestedAmount
+	 * @param arbitrageAmount
+	 * @return
+	 */
+	private double getTradeableAmount (Currency currency, double requestedAmount, double arbitrageAmount) {
+		double tradeAbleAmount = requestedAmount;
+		double walletAmount = walletProvider.getBalance(currency);
+		if(tradeAbleAmount > walletAmount) {
+			tradeAbleAmount = walletAmount;
+		}
+		if(tradeAbleAmount > arbitrageAmount) {
+			tradeAbleAmount = arbitrageAmount;
+		}
+		return tradeAbleAmount;
 	}
 }

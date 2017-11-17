@@ -242,8 +242,7 @@ public abstract class AbstractArbitrageExchange {
 		BigDecimal askPrice = BigDecimal.valueOf(askPriceDouble).setScale(decimals, BigDecimal.ROUND_HALF_UP);
 		BigDecimal askAmount = BigDecimal.valueOf(askAmountDouble).setScale(decimals, BigDecimal.ROUND_HALF_UP);
 
-		LimitOrder limitOrder = new LimitOrder.Builder(OrderType.ASK, currencyPair).limitPrice(askPrice)
-				.tradableAmount(askAmount).build();
+		LimitOrder limitOrder = new LimitOrder.Builder(OrderType.ASK, currencyPair).limitPrice(askPrice).originalAmount(askAmount).build();
 		return tradeService.placeLimitOrder(limitOrder);
 	}
 
@@ -266,7 +265,7 @@ public abstract class AbstractArbitrageExchange {
 		BigDecimal bidAmount_D = BigDecimal.valueOf(bidAmount).setScale(decimals, BigDecimal.ROUND_HALF_UP);
 
 		LimitOrder limitOrder = new LimitOrder.Builder(OrderType.BID, currencyPair).limitPrice(bidPrice_D)
-				.tradableAmount(bidAmount_D).build();
+				.originalAmount(bidAmount_D).build();
 		return tradeService.placeLimitOrder(limitOrder);
 	}
 

@@ -77,6 +77,9 @@ public class ChannelHandler implements Runnable {
 	@Override
 	public void run() {
 		active = true;
+		//TODO Keep alive counter in seperatem thread
+		
+		
 		// TODO Auto-generated method stub
 		while (!stop) {
 			try {
