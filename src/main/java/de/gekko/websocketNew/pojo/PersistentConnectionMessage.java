@@ -1,9 +1,6 @@
 package de.gekko.websocketNew.pojo;
 
-import java.util.List;
-
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
 import com.google.gson.annotations.SerializedName;
 
 public class PersistentConnectionMessage {
@@ -12,7 +9,7 @@ public class PersistentConnectionMessage {
 	private String messageId;
 	
 	@SerializedName("M")
-	private List<JsonObject> messageData;
+	private JsonArray messageData;
 	
 	@SerializedName("S")
 	private int transportStartFlag;
@@ -24,7 +21,7 @@ public class PersistentConnectionMessage {
 		return messageId;
 	}
 
-	public List<JsonObject> getMessageData() {
+	public JsonArray getMessageData() {
 		return messageData;
 	}
 

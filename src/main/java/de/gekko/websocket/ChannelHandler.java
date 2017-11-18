@@ -97,6 +97,7 @@ public class ChannelHandler {
     private void processUpdate(UpdateExchangeStateItem o) {
         if (o.nounce <= nounce) {
         		// nounce des updates älter als aktuelle nounce
+        		
             return;
         }
         if (o.nounce - nounce == 1) {

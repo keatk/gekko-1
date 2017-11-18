@@ -60,7 +60,7 @@ public class ChannelHandler implements Runnable {
 	private OrderBook orderBook = null;
 
 	private Set<ReceiveOrderbook> subscribers = new HashSet<>();
-	private ExecutorService broadcastExecutorService = Executors.newFixedThreadPool(20); // TODO USE CACHED EXECUTOR	P00lZ
+	private ExecutorService broadcastExecutorService = Executors.newCachedThreadPool();
 
 	private final TreeMap<BigDecimal, LimitOrder> asks = new TreeMap<>();
 	private final TreeMap<BigDecimal, LimitOrder> bids = new TreeMap<>((k1, k2) -> -k1.compareTo(k2));
@@ -89,16 +89,18 @@ public class ChannelHandler implements Runnable {
 				e.printStackTrace();
 			}
 			
-			queueLock.lock();
+
 			// reset orderbook
 			orderBook = null;
 			
+			// Wait for inital state
 			if(!initalStateReceived) {
+				queueLock.lock();
 				// Get inital state
 				ExchangeStateUpdate initalState = queue.stream().filter(update -> update.getMarketName() == null).findFirst().orElse(null);
 				// Process inital state
 				if(initalState != null) {
-					LOGGER.info("inital state received");
+					LOGGER.info("Processing inital exchange state [{}]", currencyPair);
 					processInitalState(initalState);
 					// Deal with rest of queue
 					if(queue.size() == 1) {
@@ -108,15 +110,19 @@ public class ChannelHandler implements Runnable {
 						queue.forEach(update -> processUpdate(update));
 					}
 				}
+				queueLock.unlock();
+			} else {
+				LOGGER.info("Processing Update [{}]", currencyPair);
+				queueLock.lock();
+				// Process updates
+				queue.forEach(update -> processUpdate(update));
+				// Clear queue
+				queue.clear();
+				// Broadcast new orderbook
+				broadcastOrderbook();
+				queueLock.unlock();
 			}
-			LOGGER.info("Processing Update [{}]", currencyPair);
-			// Process updates
-			queue.forEach(update -> processUpdate(update));
-			// Clear queue
-			queue.clear();
-			queueLock.unlock();
-			// Broadcast new orderbook
-			broadcastOrderbook();
+			
 		}
 		active = false;
 	}
@@ -124,15 +130,15 @@ public class ChannelHandler implements Runnable {
 	/**
 	 * Process inital exchange state.
 	 * @param exchangeUpdate
+	 * @throws InterruptedException 
 	 */
-	private void processInitalState(ExchangeStateUpdate exchangeUpdate) {
+	private void processInitalState(ExchangeStateUpdate exchangeUpdate)  {
 		initalStateReceived = true;
-        nounce = exchangeUpdate.getNounce();
+//        nounce = exchangeUpdate.getNounce();
         bids.clear();
         asks.clear();
-        Stream.of(exchangeUpdate.getBuys()).forEach(buy -> bids.put(buy.getRate(), new LimitOrder(Order.OrderType.BID, buy.getQuantity(), currencyPair, null, null, buy.getRate())));
-        Stream.of(exchangeUpdate.getSells()).forEach(sell -> asks.put(sell.getRate(), new LimitOrder(Order.OrderType.ASK, sell.getQuantity(), currencyPair, null, null, sell.getRate())));
-        
+        exchangeUpdate.getBuys().forEach(buy -> bids.put(buy.getRate(), new LimitOrder(Order.OrderType.BID, buy.getQuantity(), currencyPair, null, null, buy.getRate())));
+        exchangeUpdate.getSells().forEach(sell -> asks.put(sell.getRate(), new LimitOrder(Order.OrderType.ASK, sell.getQuantity(), currencyPair, null, null, sell.getRate())));
         queue.forEach(update -> {
         		if(update.getMarketName() != null) {
             		processUpdate(update);
@@ -146,22 +152,28 @@ public class ChannelHandler implements Runnable {
 	 * @param exchangeUpdate
 	 */
 	private void processUpdate(ExchangeStateUpdate exchangeUpdate) {
-		if (exchangeUpdate.getNounce() <= nounce) {
-			// nounce des updates älter als aktuelle nounce
-			LOGGER.info("MISSING DATA");
-			LOGGER.info("Current nounce: {}, update nounce: {}", nounce, exchangeUpdate.getNounce() );
-			System.exit(1);
-			return;
-		}
-		if (exchangeUpdate.getNounce() - nounce == 1) {
-			nounce++;
+		if(nounce == 0) {
+			nounce = exchangeUpdate.getNounce();
 		} else {
-			LOGGER.warn("Missing data, going to resubscribe " + currencyPair);
-			//TODO RESUBSCRIBE
-			return;
+			if (exchangeUpdate.getNounce() <= nounce) {
+				LOGGER.info("MISSING DATA");
+				LOGGER.info("Current nounce: {}, update nounce: {}", nounce, exchangeUpdate.getNounce() );
+				System.exit(1);
+				return;
+			}
+			if (exchangeUpdate.getNounce() - nounce == 1) {
+				nounce++;
+			} else {
+				LOGGER.warn("Missing data, going to resubscribe " + currencyPair);
+				//TODO RESUBSCRIBE
+				LOGGER.info("Current nounce: {}, update nounce: {}", nounce, exchangeUpdate.getNounce() );
+				System.exit(1);
+				return;
+			}
 		}
 
-		// processes bid updates
+
+		// Processes bid updates
 		BiConsumer<OrderUpdate, TreeMap<BigDecimal, LimitOrder>> bidsProcessor = (update, bids) -> {
 			switch (update.getType()) {
 			case ADD:
@@ -176,7 +188,7 @@ public class ChannelHandler implements Runnable {
 			}
 		};
 
-		// processes ask updates
+		// Processes ask updates
 		BiConsumer<OrderUpdate, TreeMap<BigDecimal, LimitOrder>> asksProcessor = (update, asks) -> {
 			switch (update.getType()) {
 			case ADD:
@@ -191,9 +203,9 @@ public class ChannelHandler implements Runnable {
 			}
 		};
 
-		// feed processors with updates
-		Stream.of(exchangeUpdate.getBuys()).forEach(update -> bidsProcessor.accept(update, bids));
-		Stream.of(exchangeUpdate.getSells()).forEach(update -> asksProcessor.accept(update, asks));
+		// Feed updates to processors 
+		exchangeUpdate.getBuys().forEach(update -> bidsProcessor.accept(update, bids));
+		exchangeUpdate.getSells().forEach(update -> asksProcessor.accept(update, asks));
 
 	}
 	
@@ -202,12 +214,11 @@ public class ChannelHandler implements Runnable {
 	 */
     public void broadcastOrderbook() {
     		OrderBook orderBook = getOrderBook();
+    		OrderBookUpdate orderBookUpdate = new OrderBookUpdate(currencyPair, orderBook);
 		if(!subscribers.isEmpty()) {
-//			broadcastExecutorService = Executors.newFixedThreadPool(subscribers.size());
 			subscribers.forEach(subscriber -> broadcastExecutorService.submit(
-					() -> {subscriber.receiveUpdate(new OrderBookUpdate(currencyPair, orderBook));
+					() -> {subscriber.receiveUpdate(orderBookUpdate);
 					}));
-//			broadcastExecutorService.shutdown();
 		}
 	}
     
@@ -221,9 +232,7 @@ public class ChannelHandler implements Runnable {
 			return old;
 		}
 
-		synchronized (this) {
-			orderBook = new OrderBook(new Date(), new ArrayList<>(asks.values()), new ArrayList<>(bids.values()));
-		}
+		orderBook = new OrderBook(new Date(), new ArrayList<>(asks.values()), new ArrayList<>(bids.values()));
 		return orderBook;
 	}
 

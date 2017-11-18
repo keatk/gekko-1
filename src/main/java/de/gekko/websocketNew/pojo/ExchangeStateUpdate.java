@@ -1,6 +1,7 @@
 package de.gekko.websocketNew.pojo;
 
 import java.util.Arrays;
+import java.util.List;
 
 import com.google.gson.annotations.SerializedName;
 
@@ -14,19 +15,19 @@ public class ExchangeStateUpdate {
     private long nounce;
     
     @SerializedName("Buys")
-    private OrderUpdate[] buys;
+    private List<OrderUpdate> buys;
     
     @SerializedName("Sells")
-    private OrderUpdate[] sells;
+    private List<OrderUpdate> sells;
     
-    @SerializedName("Fills")
-    private Fill[] fills;
+//    @SerializedName("Fills")
+//    private Fill[] fills;
     
-    @Override
-    public String toString() {
-        return "QueryExchangeState [marketName=" + marketName + ", nounce=" + nounce + ", buys=" + Arrays.toString(buys)
-                + ", sells=" + Arrays.toString(sells) + ", fills=" + Arrays.toString(fills) + "]";
-    }
+//    @Override
+//    public String toString() {
+//        return "QueryExchangeState [marketName=" + marketName + ", nounce=" + nounce + ", buys=" + Arrays.toString(buys)
+//                + ", sells=" + Arrays.toString(sells) + ", fills=" + Arrays.toString(fills) + "]";
+//    }
 
 	public String getMarketName() {
 		return marketName;
@@ -36,16 +37,16 @@ public class ExchangeStateUpdate {
 		return nounce;
 	}
 
-	public OrderUpdate[] getBuys() {
+	public List<OrderUpdate> getBuys() {
 		return buys;
 	}
 
-	public OrderUpdate[] getSells() {
+	public List<OrderUpdate> getSells() {
 		return sells;
 	}
 
-	public Fill[] getFills() {
-		return fills;
-	}
+//	public Fill[] getFills() {
+//		return fills;
+//	}
  
 }

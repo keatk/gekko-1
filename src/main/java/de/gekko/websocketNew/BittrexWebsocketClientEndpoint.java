@@ -90,10 +90,9 @@ public class BittrexWebsocketClientEndpoint extends Endpoint {
 						}
 						
 						// Check if hub messages are present
-						if(!message.getMessageData().isEmpty()) {
+						if(message.getMessageData().size() != 0) {
 							try {
-								JsonArray hubMessages = gson.fromJson(message.getMessageData().toString(), JsonArray.class);
-								hubMessages.forEach((jsonElement) ->{
+								message.getMessageData().forEach((jsonElement) ->{
 									// Check each hub message for exchange state updates
 									JsonObject jsonObject = jsonElement.getAsJsonObject();
 									if(jsonObject.get("M").getAsString().equals("updateExchangeState")) {
@@ -129,7 +128,7 @@ public class BittrexWebsocketClientEndpoint extends Endpoint {
 								getExchangeState(session);
 								return;
 							} else {
-								ExchangeStateUpdate exchangeState = gson.fromJson(responseMessage.getResponse().toString(), ExchangeStateUpdate.class);
+								ExchangeStateUpdate exchangeState = gson.fromJson(responseMessage.getResponse(), ExchangeStateUpdate.class);
 								bittrexWebsocket.sendToChannelHandler(currencyPair, exchangeState);
 								return;
 							}

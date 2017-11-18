@@ -5,7 +5,7 @@ import org.knowm.xchange.dto.marketdata.OrderBook;
 
 /**
  * Class to hold updated order book and corresponding currency pair.
- * @author max
+ * @author Maximilian Pfister
  */
 public class OrderBookUpdate {
 	
