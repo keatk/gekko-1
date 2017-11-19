@@ -188,14 +188,14 @@ public class TriangularArbitrager {
 		return aligned;
 	}
 	
-	public void restApitriangularArbitrage() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
+	public void restApiTriangularArbitrage() throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
 		updateOrderbooks();
 		
-		if(triangularArbitrage1(orderBook1, orderBook2, orderBook3)){
+		if(triangularArbitrageAskBid(orderBook1, orderBook2, orderBook3)){
 			updateOrderbooks();
 			arbitCounter++;
 		}
-		if(triangularArbitrage2(orderBook1, orderBook2, orderBook3)){
+		if(triangularArbitrageBidAsk(orderBook1, orderBook2, orderBook3)){
 			arbitCounter++;
 		}
 		LOGGER.info("Numer of Arbitrage Chances: {}", arbitCounter);
@@ -210,7 +210,7 @@ public class TriangularArbitrager {
 	 * @throws IOException
 	 * @throws InterruptedException
 	 */
-	public boolean triangularArbitrage1(OrderBook baseOrderBook, OrderBook cross1Orderbook, OrderBook cross2Orderbook) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
+	public boolean triangularArbitrageAskBid(OrderBook baseOrderBook, OrderBook cross1Orderbook, OrderBook cross2Orderbook) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
 		// Return value for couting arbitrage chances
 		boolean ret = false;
 		// Get bids and asks
@@ -246,13 +246,13 @@ public class TriangularArbitrager {
 		double arb = (crossExchangeRate/basePairPrice -1)*100;
 		
 		// Abitrage info
-		LOGGER.info("BID: {} [{}/{}] -- ASK: {} [X {}/{}] -- ARBITRAGE = {}", basePairPrice, basePair.base.toString(), basePair.counter.toString(), String.format("%.8f", crossExchangeRate), crossPair1.base.toString(), crossPair2.base.toString(), arb);
+		LOGGER.info("ASK: {} [{}/{}] -- BID: {} [X {}/{}] -- ARBITRAGE = {}", basePairPrice, basePair.base.toString(), basePair.counter.toString(), String.format("%.8f", crossExchangeRate), crossPair1.base.toString(), crossPair2.base.toString(), arb);
 
 		
 		if(debug1){
 			// Simulated trading for debugging and testing
 			LOGGER.info("=== DEBUG TRADE #1 ===");
-			double tradeAmount = 0.0005;
+			double tradeAmount = 1;
 			// Base pair
 			double sellAmountBasePair = tradeAmount; //BTC Verkaufen
 			double buyAmountBasePair = sellAmountBasePair/basePairPrice;
@@ -430,7 +430,7 @@ public class TriangularArbitrager {
 		return ret;
 	}
 	
-	public boolean triangularArbitrage2(OrderBook baseOrderBook, OrderBook cross1Orderbook, OrderBook cross2Orderbook) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
+	public boolean triangularArbitrageBidAsk(OrderBook baseOrderBook, OrderBook cross1Orderbook, OrderBook cross2Orderbook) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
 		// Return value
 		boolean ret = false;
 		
@@ -465,7 +465,7 @@ public class TriangularArbitrager {
 //		}
 		double arb = (basePairPrice/crossExchangeRate -1)*100;
 
-		LOGGER.info("ASK: {} [{}/{}] -- BID: {} [X {}/{}] -- ARBITRAGE = {}", basePairPrice, basePair.base.toString(), basePair.counter.toString(), String.format("%.8f", crossExchangeRate), crossPair1.counter.toString(), crossPair2.counter.toString(), arb);
+		LOGGER.info("BID: {} [{}/{}] -- ASK: {} [X {}/{}] -- ARBITRAGE = {}", basePairPrice, basePair.base.toString(), basePair.counter.toString(), String.format("%.8f", crossExchangeRate), crossPair1.counter.toString(), crossPair2.counter.toString(), arb);
 
 		if(debug2){
 			 //Simulated trading for debugging and testing

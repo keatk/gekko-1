@@ -49,6 +49,7 @@ public class BittrexChannelHandler implements Runnable {
 	
 	private Lock queueLock = new ReentrantLock();
 	private PriorityQueue<ExchangeStateUpdate> queue = new PriorityQueue<>((u1, u2) -> {
+		// Oldest nounces first
 		if(u1.getNounce() > u2.getNounce()) {
 			return 1;
 		} else {
@@ -78,9 +79,9 @@ public class BittrexChannelHandler implements Runnable {
 	@Override
 	public void run() {
 		active = true;
-		//TODO Keep alive counter in seperatem thread
-		keepAliveExecutor = Executors.newSingleThreadExecutor();
 		
+		// Keep alive checker in separate thread.
+		keepAliveExecutor = Executors.newSingleThreadExecutor();
 		// launch keep alive thread
 		keepAliveExecutor.submit(() -> {
 			while (!stop) {
@@ -98,7 +99,6 @@ public class BittrexChannelHandler implements Runnable {
 			}
 		});
 		
-		// TODO Auto-generated method stub
 		while (!stop) {
 			try {
 				processUpdateSem.acquire();
@@ -159,7 +159,7 @@ public class BittrexChannelHandler implements Runnable {
         exchangeUpdate.getBuys().forEach(buy -> bids.put(buy.getRate(), new LimitOrder(Order.OrderType.BID, buy.getQuantity(), currencyPair, null, null, buy.getRate())));
         exchangeUpdate.getSells().forEach(sell -> asks.put(sell.getRate(), new LimitOrder(Order.OrderType.ASK, sell.getQuantity(), currencyPair, null, null, sell.getRate())));
         queue.forEach(update -> {
-        		if(update.getMarketName() != null) {
+        		if(update.getMarketName() != null) { // If not inital state
             		processUpdate(update);
         		}
         });
@@ -298,7 +298,7 @@ public class BittrexChannelHandler implements Runnable {
 		queue.add(update);
 		queueLock.unlock();
 		processUpdateSem.release();
-		singalAlive();
+		singalAlive(); // While updates are received, SocketEndpoint is alive
 	}
 	
 	/**
@@ -317,6 +317,9 @@ public class BittrexChannelHandler implements Runnable {
 		subscribers.remove(updateableObject);
 	}
 	
+	/**
+	 * Revceive sigal alive message from SocketEndpoint.
+	 */
 	public void singalAlive() {
 		lastKeepAlive = System.currentTimeMillis();
 	}

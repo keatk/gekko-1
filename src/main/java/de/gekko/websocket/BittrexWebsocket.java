@@ -176,6 +176,7 @@ public class BittrexWebsocket {
 		channelHandlers.get(currencyPair).singalAlive();;
 	}
 	
+	//TODO 
 //	public void resubscribe(String currencyPairBittrex) {
 //		CurrencyPair currencyPair = toCurrencyPair(currencyPairBittrex);
 //		channelHandlers.get(currencyPair).stop();
