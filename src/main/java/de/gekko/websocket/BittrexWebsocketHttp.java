@@ -1,4 +1,4 @@
-package de.gekko.websocketNew;
+package de.gekko.websocket;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -30,9 +30,9 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
-import de.gekko.websocketNew.pojo.Hub;
-import de.gekko.websocketNew.pojo.HubMessage;
-import de.gekko.websocketNew.pojo.NegotiationResponse;
+import de.gekko.websocket.pojo.Hub;
+import de.gekko.websocket.pojo.HubMessage;
+import de.gekko.websocket.pojo.NegotiationResponse;
 
 public class BittrexWebsocketHttp {
 	

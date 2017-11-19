@@ -1,4 +1,4 @@
-package de.gekko.websocketNew;
+package de.gekko.websocket;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;

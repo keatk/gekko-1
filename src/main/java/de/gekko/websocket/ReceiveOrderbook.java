@@ -1,4 +1,4 @@
-package de.gekko.websocketNew;
+package de.gekko.websocket;
 
 public interface ReceiveOrderbook {
 	

@@ -20,9 +20,9 @@ import de.gekko.concurrency.BinarySemaphore;
 import de.gekko.exception.CurrencyMismatchException;
 import de.gekko.exchanges.BittrexArbitrageExchange;
 import de.gekko.wallet.AsyncWalletProvider;
-import de.gekko.websocketNew.OrderBookUpdate;
-import de.gekko.websocketNew.ReceiveOrderbook;
-import de.gekko.websocketNew.BittrexWebsocket;
+import de.gekko.websocket.BittrexWebsocket;
+import de.gekko.websocket.OrderBookUpdate;
+import de.gekko.websocket.ReceiveOrderbook;
 
 /**
  * Class that performs triangular arbitrage (aka. inter market arbitrage) on the Bittrex exchange.

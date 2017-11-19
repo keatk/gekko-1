@@ -1,4 +1,4 @@
-package de.gekko.websocketNew;
+package de.gekko.websocket;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -24,8 +24,8 @@ import org.slf4j.LoggerFactory;
 
 import de.gekko.concurrency.BinarySemaphore;
 import de.gekko.exception.CurrencyMismatchException;
-import de.gekko.websocketNew.pojo.ExchangeStateUpdate;
-import de.gekko.websocketNew.pojo.OrderUpdate;
+import de.gekko.websocket.pojo.ExchangeStateUpdate;
+import de.gekko.websocket.pojo.OrderUpdate;
 
 /**
  * Concurrent channel handler that processes orderbook updates fed by BittrexWebsocket.

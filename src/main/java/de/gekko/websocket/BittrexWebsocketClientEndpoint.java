@@ -1,4 +1,4 @@
-package de.gekko.websocketNew;
+package de.gekko.websocket;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -16,10 +16,10 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
-import de.gekko.websocketNew.pojo.ExchangeStateUpdate;
-import de.gekko.websocketNew.pojo.HubMessage;
-import de.gekko.websocketNew.pojo.PersistentConnectionMessage;
-import de.gekko.websocketNew.pojo.ResponseMessage;
+import de.gekko.websocket.pojo.ExchangeStateUpdate;
+import de.gekko.websocket.pojo.HubMessage;
+import de.gekko.websocket.pojo.PersistentConnectionMessage;
+import de.gekko.websocket.pojo.ResponseMessage;
 
 /**
  * Handles Bittrex websocket transport.

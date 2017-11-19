@@ -1,4 +1,4 @@
-package de.gekko.websocketNew.pojo;
+package de.gekko.websocket.pojo;
 
 import com.google.gson.annotations.SerializedName;
 

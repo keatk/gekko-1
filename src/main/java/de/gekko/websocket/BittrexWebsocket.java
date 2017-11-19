@@ -1,4 +1,4 @@
-package de.gekko.websocketNew;
+package de.gekko.websocket;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -20,7 +20,7 @@ import org.knowm.xchange.currency.CurrencyPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import de.gekko.websocketNew.pojo.ExchangeStateUpdate;
+import de.gekko.websocket.pojo.ExchangeStateUpdate;
 
 /**
  * Connects to Bittrex Websocket endpoint using the signalR protocol.

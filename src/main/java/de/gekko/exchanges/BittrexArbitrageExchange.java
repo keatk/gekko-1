@@ -16,8 +16,8 @@ import org.knowm.xchange.ExchangeFactory;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.bittrex.BittrexExchange;
 
-import de.gekko.websocketNew.BittrexWebsocket;
-import de.gekko.websocketNew.CloudflareScraper;
+import de.gekko.websocket.BittrexWebsocket;
+import de.gekko.websocket.CloudflareScraper;
 
 public class BittrexArbitrageExchange extends AbstractArbitrageExchange {
 
