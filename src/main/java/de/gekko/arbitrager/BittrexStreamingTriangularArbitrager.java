@@ -63,7 +63,6 @@ public class BittrexStreamingTriangularArbitrager extends TriangularArbitrager i
 			locks.put(currencyPair, new ReentrantLock());
 			orderBookQueues.put(currencyPair, new PriorityQueue<>(byTimeStamp));
 			try {
-				System.out.println("YARP2");
 				bittrexWebsocket.registerSubscriber(currencyPair, this);
 			} catch (Exception e) {
 				// TODO Auto-generated catch block

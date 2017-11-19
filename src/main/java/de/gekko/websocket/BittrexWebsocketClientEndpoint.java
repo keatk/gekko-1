@@ -63,7 +63,6 @@ public class BittrexWebsocketClientEndpoint extends Endpoint {
 
 	@Override
 	public void onOpen(Session session, EndpointConfig config) {
-		System.out.println("Connected to server");
 		session.addMessageHandler(new MessageHandler.Whole<String>() {
 			public void onMessage(String messageString) {
 				// Check if keep alive message
@@ -76,14 +75,6 @@ public class BittrexWebsocketClientEndpoint extends Endpoint {
 				/* begin persistent connection message */
 				if (messageString.charAt(2) == 'C') {
 					PersistentConnectionMessage message = gson.fromJson(messageString, PersistentConnectionMessage.class);
-
-					// Check for startup message
-					if (!startupSuccess) {
-						if (message.getTransportStartFlag() == 1) {
-							startupSuccess = true;
-							return;
-						}
-					}
 
 					// Check if hub messages are present
 					if (message.getMessageData().size() != 0) {
@@ -109,6 +100,15 @@ public class BittrexWebsocketClientEndpoint extends Endpoint {
 							System.exit(1);
 						}
 					}
+					
+					// Check for startup message
+					if (!startupSuccess) {
+						if (message.getTransportStartFlag() == 1) {
+							startupSuccess = true;
+							return;
+						}
+					}
+					
 				}
 				/* end persistent connection message */
 
