@@ -32,7 +32,7 @@ import de.gekko.websocket.pojo.OrderUpdate;
  * @author Maximilian Pfister
  *
  */
-public class ChannelHandler implements Runnable {
+public class BittrexChannelHandler implements Runnable {
 	
 	/* constants */
 	
@@ -68,7 +68,7 @@ public class ChannelHandler implements Runnable {
 	
 	/* constructors */
 	
-	private ChannelHandler(CurrencyPair currencyPair) {
+	private BittrexChannelHandler(CurrencyPair currencyPair) {
 		this.currencyPair = currencyPair;
 	}
 
@@ -140,6 +140,9 @@ public class ChannelHandler implements Runnable {
 			}
 			
 		}
+		// Shut down executors
+		broadcastExecutorService.shutdown();
+		keepAliveExecutor.shutdown();
 		active = false;
 	}
 	
@@ -262,8 +265,8 @@ public class ChannelHandler implements Runnable {
 	 * @throws IOException
 	 * @throws CurrencyMismatchException
 	 */
-	public static ChannelHandler createInstance(CurrencyPair currencyPair) {
-		ChannelHandler channelHandler = new ChannelHandler(currencyPair);
+	public static BittrexChannelHandler createInstance(CurrencyPair currencyPair) {
+		BittrexChannelHandler channelHandler = new BittrexChannelHandler(currencyPair);
 		Thread thread = new Thread(channelHandler);
 		thread.start();
 		return channelHandler;

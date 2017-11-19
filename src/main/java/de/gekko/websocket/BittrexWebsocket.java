@@ -52,7 +52,7 @@ public class BittrexWebsocket {
 	private CookieStore cookieStore;
 	private HttpClient httpClient;
 	private BittrexWebsocketHttp bittrexWebsocketHttp;
-	private Map<CurrencyPair, ChannelHandler> channelHandlers;
+	private Map<CurrencyPair, BittrexChannelHandler> channelHandlers;
 	
 	/* constructors */
 
@@ -61,15 +61,6 @@ public class BittrexWebsocket {
 	}
 
 	/* public methods */
-	
-	//TODO remove after class is finished
-	public static void main(String[] args)
-			throws ClientProtocolException, IOException, URISyntaxException, InterruptedException {
-		BittrexWebsocket bittrexWebsocket = BittrexWebsocket.getInstance();
-		bittrexWebsocket.init();
-		bittrexWebsocket.subscribeOrderbook(new CurrencyPair(Currency.getInstance("USDT"), Currency.getInstance("BTC")));
-//		bittrexWebsocket.subscribeOrderbook(new CurrencyPair(Currency.getInstance("ETH"), Currency.getInstance("XRP")));
-	}
 
 	/**
 	 * Returns singleton instance.
@@ -184,6 +175,11 @@ public class BittrexWebsocket {
 		}
 		channelHandlers.get(currencyPair).singalAlive();;
 	}
+	
+//	public void resubscribe(String currencyPairBittrex) {
+//		CurrencyPair currencyPair = toCurrencyPair(currencyPairBittrex);
+//		channelHandlers.get(currencyPair).stop();
+//	}
 
 	/* private methods */
 	
@@ -194,7 +190,7 @@ public class BittrexWebsocket {
 	private synchronized void createChannelHandler(CurrencyPair currencyPair) {
 		LOGGER.info("CREATE CHANNEL HANDLER " + currencyPair);
 		if(!channelHandlers.containsKey(currencyPair)) {
-			channelHandlers.put(currencyPair, ChannelHandler.createInstance(currencyPair));
+			channelHandlers.put(currencyPair, BittrexChannelHandler.createInstance(currencyPair));
 		}
 	}
 	
