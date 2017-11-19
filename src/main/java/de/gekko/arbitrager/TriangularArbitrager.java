@@ -324,14 +324,14 @@ public class TriangularArbitrager {
 //				}
 
 				// Set up order for base pair
-				double sellAmountBasePair = basePairAmount;
+				double sellAmountBasePair = basePairAmount *1.0025;
 				Callable<String> callable_orderBasePair = () -> {
 					String baseTrade;
 //					try {
 //						baseTrade = exchange.placeLimitOrderAsk(basePair, basePairPrice, sellAmountBasePair);
 //					} catch (Exception e) {
 //						e.printStackTrace();
-						baseTrade = exchange.placeLimitOrderBid(new CurrencyPair(basePair.counter, basePair.base), basePairPrice, (sellAmountBasePair/basePairPrice)*1.0025); // BTC verkaufen bzw ETH kaufen korrekt
+						baseTrade = exchange.placeLimitOrderBid(new CurrencyPair(basePair.counter, basePair.base), basePairPrice, (sellAmountBasePair/basePairPrice)); // BTC verkaufen bzw ETH kaufen korrekt
 //					}
 					return baseTrade;
 				};
@@ -368,14 +368,14 @@ public class TriangularArbitrager {
 				// Set up order for cross pair 2
 				Callable<String> callable_orderCrossPair2;
 //				if(twistCrossPair2) {
-					double sellAmountCrossPair2 = sellAmountBasePair/basePairPrice; 
+					double sellAmountCrossPair2 = (sellAmountBasePair*1.0025)/basePairPrice; 
 					callable_orderCrossPair2 = () -> {
 						String cross2Trade;
 //						try {
 //							cross2Trade = exchange.placeLimitOrderAsk(crossPair2, crossPair2Price, sellAmountCrossPair2);
 //						} catch (Exception e) {
 //							e.printStackTrace();
-							cross2Trade = exchange.placeLimitOrderBid(new CurrencyPair(crossPair2.counter, crossPair2.base), crossPair2Price, (sellAmountCrossPair2/crossPair2Price)*1.0025);
+							cross2Trade = exchange.placeLimitOrderBid(new CurrencyPair(crossPair2.counter, crossPair2.base), crossPair2Price, (sellAmountCrossPair2/crossPair2Price));
 //						}
 						return cross2Trade;
 					};

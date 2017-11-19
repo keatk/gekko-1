@@ -69,7 +69,7 @@ public class BittrexWebsocketClientEndpoint extends Endpoint {
 				// Check if keep alive message
 				if (messageString.length() < 3) {
 					LOGGER.info("KeepAliveMessage");
-					// do nothing
+					bittrexWebsocket.keepAliveChannelHandler(currencyPair);
 					return;
 				}
 

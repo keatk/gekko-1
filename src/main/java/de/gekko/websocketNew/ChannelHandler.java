@@ -5,9 +5,8 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.PriorityQueue;
-import java.util.Queue;
+
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
@@ -15,7 +14,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
-import java.util.stream.Stream;
 
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
@@ -45,6 +43,8 @@ public class ChannelHandler implements Runnable {
 	private final BinarySemaphore processUpdateSem = new BinarySemaphore(false);
 	private boolean active = false;
 	private boolean stop = false;
+	private int keepAliveTimeout = 30; // seconds
+	private long lastKeepAlive;
 	private CurrencyPair currencyPair;
 	
 	private Lock queueLock = new ReentrantLock();
@@ -61,6 +61,7 @@ public class ChannelHandler implements Runnable {
 
 	private Set<ReceiveOrderbook> subscribers = new HashSet<>();
 	private ExecutorService broadcastExecutorService = Executors.newCachedThreadPool();
+	private ExecutorService keepAliveExecutor;
 
 	private final TreeMap<BigDecimal, LimitOrder> asks = new TreeMap<>();
 	private final TreeMap<BigDecimal, LimitOrder> bids = new TreeMap<>((k1, k2) -> -k1.compareTo(k2));
@@ -78,7 +79,24 @@ public class ChannelHandler implements Runnable {
 	public void run() {
 		active = true;
 		//TODO Keep alive counter in seperatem thread
+		keepAliveExecutor = Executors.newSingleThreadExecutor();
 		
+		// launch keep alive thread
+		keepAliveExecutor.submit(() -> {
+			while (!stop) {
+				// wait for seconds specified by keepAliveTimeout
+				try {
+					Thread.sleep(keepAliveTimeout * 1000);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				if((System.currentTimeMillis() - lastKeepAlive) > keepAliveTimeout * 1000) {
+					LOGGER.info("Keep alive timeout[{}]", currencyPair);
+					System.exit(1);
+				};
+			}
+		});
 		
 		// TODO Auto-generated method stub
 		while (!stop) {
@@ -88,8 +106,6 @@ public class ChannelHandler implements Runnable {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			
-
 			// reset orderbook
 			orderBook = null;
 			
@@ -279,6 +295,7 @@ public class ChannelHandler implements Runnable {
 		queue.add(update);
 		queueLock.unlock();
 		processUpdateSem.release();
+		singalAlive();
 	}
 	
 	/**
@@ -295,6 +312,10 @@ public class ChannelHandler implements Runnable {
 	 */
 	public void removeSubscriber(ReceiveOrderbook updateableObject) {
 		subscribers.remove(updateableObject);
+	}
+	
+	public void singalAlive() {
+		lastKeepAlive = System.currentTimeMillis();
 	}
 
 }

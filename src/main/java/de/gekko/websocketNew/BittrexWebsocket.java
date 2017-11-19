@@ -176,6 +176,14 @@ public class BittrexWebsocket {
 		}
 		channelHandlers.get(currencyPair).feedUpdate(update);
 	}
+	
+	public void keepAliveChannelHandler(String currencyPairBittrex) {
+		CurrencyPair currencyPair = toCurrencyPair(currencyPairBittrex);
+		if(!channelHandlers.containsKey(currencyPair)) {
+			createChannelHandler(currencyPair);
+		}
+		channelHandlers.get(currencyPair).singalAlive();;
+	}
 
 	/* private methods */
 	

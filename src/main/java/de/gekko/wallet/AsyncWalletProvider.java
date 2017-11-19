@@ -51,21 +51,24 @@ public class AsyncWalletProvider implements Runnable {
 	public void run() {
 		active = true;
 		// executor service for update interval thread
-		ExecutorService signalUpdateService = Executors.newFixedThreadPool(1);
+		ExecutorService signalUpdateService = Executors.newSingleThreadExecutor();
 		
-		while(!stop) {
-			// launch update interval thread
-			signalUpdateService.submit(() -> {
-				//wait for seconds specified by updateInterval variable
+		// launch update interval thread
+		signalUpdateService.submit(() -> {
+			while (!stop) {
+				// wait for seconds specified by updateInterval variable
 				try {
-					Thread.sleep(updateInterval*1000);
+					Thread.sleep(updateInterval * 1000);
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 				// release semaphore to perform wallet update
 				walletUpdateSemaphore.release();
-			});
+			}
+		});
+		
+		while(!stop) {
 			
 			// wait until semaphore can be acquired 
 			try {
@@ -105,6 +108,9 @@ public class AsyncWalletProvider implements Runnable {
 			// Logging / printing wallet info
 			info();
 		}
+		
+		// Shut down executor service
+		signalUpdateService.shutdown();
 		active = false;
 	}
 	
