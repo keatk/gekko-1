@@ -35,7 +35,7 @@ public class TriangularArbitrager {
 	private final double MAX_TRADE_AMOUNT; //based on base of baseCurrencyPair
 	
 	private int arbitCounter = 0;
-	private boolean debug1 = false;
+	private boolean debug1 = false  ;
 	private boolean debug2 = true;
 	
 	/**
@@ -256,7 +256,7 @@ public class TriangularArbitrager {
 			// Base pair
 			double sellAmountBasePair = tradeAmount; //BTC Verkaufen
 			double buyAmountBasePair = sellAmountBasePair/basePairPrice;
-			LOGGER.info("Sell {}: {} for {}: {}", basePair.base, formatDecimals(sellAmountBasePair), basePair.counter, formatDecimals(buyAmountBasePair));
+			LOGGER.info("Sell {}: {} for {}: {} [price: {}, volume: {} ({})]", basePair.base, formatDecimals(sellAmountBasePair), basePair.counter, formatDecimals(buyAmountBasePair), formatDecimals(basePairPrice), formatDecimals(basePairVolume), basePair.counter);
 			
 			// Cross pair 1
 			double sellAmountCrossPair1;
@@ -268,7 +268,7 @@ public class TriangularArbitrager {
 			} else {
 				sellAmountCrossPair1 = (sellAmountBasePair/basePairPrice)/crossPair2Price; //OMG VERKAUFEN
 				buyAmountCrossPair1 = sellAmountCrossPair1*crossPair1Price;
-				LOGGER.info("Sell {}: {} for {}: {}", crossPair1.counter, formatDecimals(sellAmountCrossPair1), crossPair1.base, formatDecimals(buyAmountCrossPair1));
+				LOGGER.info("Sell {}: {} for {}: {} [price: {}, volume: {} ({})]", crossPair1.counter, formatDecimals(sellAmountCrossPair1), crossPair1.base, formatDecimals(buyAmountCrossPair1), formatDecimals(crossPair1Price), formatDecimals(crossPair1Volume), crossPair1.counter);
 			}
 			
 			// Cross pair 2
@@ -277,7 +277,7 @@ public class TriangularArbitrager {
 			if(twistCrossPair2) {
 				sellAmountCrossPair2 = sellAmountBasePair/basePairPrice;  //ETH VERKAUFEN
 				buyAmountCrossPair2 = sellAmountCrossPair2/crossPair2Price;
-				LOGGER.info("Sell {}: {} for {}: {}", crossPair2.base, formatDecimals(sellAmountCrossPair2), crossPair2.counter, formatDecimals(buyAmountCrossPair2));
+				LOGGER.info("Sell {}: {} for {}: {} [price: {}, volume: {} ({})]", crossPair2.base, formatDecimals(sellAmountCrossPair2), crossPair2.counter, formatDecimals(buyAmountCrossPair2), formatDecimals(crossPair2Price), formatDecimals(crossPair2Volume), crossPair2.counter);
 			} else {
 //				sellAmountCrossPair2 = sellAmountBasePair/basePairPrice;
 //				buyAmountCrossPair2 = sellAmountCrossPair2/crossPair2Price;
@@ -296,35 +296,37 @@ public class TriangularArbitrager {
 			if ((arb - 0.8) > 0) {
 				System.out.println("=====> Arbitrage (with fees): " + String.format("%.8f", arb - 0.75));
 				
-				double basePairAmount = 0.000525;
-//				synchronized(walletProvider) {
-//					basePairAmount = getTradeableAmount(basePair.base, MAX_TRADE_AMOUNT, basePairVolume); //BTC
-//					
-//					double crossPair1Amount = 0;
-//					if(twistCrossPair1) {
-//						//TODO
-//					} else {
-//						crossPair1Amount = getTradeableAmount(crossPair1.base, basePairAmount/basePairPrice, crossPair1Volume); //ETH
-//						if(basePairAmount > crossPair1Amount*basePairPrice) {
-//							basePairAmount = crossPair1Amount*basePairPrice;
-//						}
-//					}
-//					
-//					double crossPair2Amount = 0;
-//					if(twistCrossPair2) {
-//						crossPair2Amount = getTradeableAmount(crossPair2.counter, basePairAmount/crossPair2Price, crossPair2Volume); //OMG
-//						if(basePairAmount > crossPair2Amount*crossPair2Price) {
-//							basePairAmount = crossPair2Amount*crossPair2Price;
-//							crossPair1Amount = basePairAmount/basePairPrice;
-//						}
-//					} else {
-//						//TODO
-//					}
-//
-//				}
+				double basePairAmount = 0;
+				// Calculate maximum tradeable amount
+				synchronized(walletProvider) {
+					basePairAmount = getTradeableAmount(basePair.base, MAX_TRADE_AMOUNT, basePairVolume*basePairPrice);
+					
+					double crossPair1Amount = 0;
+					if(twistCrossPair1) {
+						//TODO
+					} else {
+						crossPair1Amount = getTradeableAmount(crossPair1.counter, (basePairAmount/basePairPrice)/crossPair2Price, crossPair1Volume); // How much OMG to sell?
+						double cross1Amount_as_base = (crossPair1Amount*crossPair2Price)*basePairPrice;
+						if(basePairAmount > cross1Amount_as_base ) {
+							basePairAmount = cross1Amount_as_base;
+						}
+					}
+					
+					double crossPair2Amount = 0;
+					if(twistCrossPair2) {
+						crossPair2Amount = getTradeableAmount(crossPair2.base, basePairAmount/basePairPrice, crossPair2Volume*crossPair2Price); //OMG
+						double cross2Amount_as_base = crossPair2Amount*basePairPrice;
+						if(basePairAmount > cross2Amount_as_base) {
+							basePairAmount = cross2Amount_as_base;
+						}
+					} else {
+						//TODO
+					}
+
+				}
 
 				// Set up order for base pair
-				double sellAmountBasePair = basePairAmount *1.0025;
+				double sellAmountBasePair = basePairAmount;
 				Callable<String> callable_orderBasePair = () -> {
 					String baseTrade;
 //					try {
@@ -351,7 +353,7 @@ public class TriangularArbitrager {
 //						return cross1Trade;
 //					};	
 //				} else {
-					double sellAmountCrossPair1 = (sellAmountBasePair/basePairPrice)/crossPair2Price; 
+					double sellAmountCrossPair1 = ((sellAmountBasePair/basePairPrice)/crossPair2Price)*0.9975; 
 					callable_orderCrossPair1 = () -> {
 						String cross1Trade;
 //						try {
@@ -368,7 +370,7 @@ public class TriangularArbitrager {
 				// Set up order for cross pair 2
 				Callable<String> callable_orderCrossPair2;
 //				if(twistCrossPair2) {
-					double sellAmountCrossPair2 = (sellAmountBasePair*1.0025)/basePairPrice; 
+					double sellAmountCrossPair2 = (sellAmountBasePair/basePairPrice)*0.9975; 
 					callable_orderCrossPair2 = () -> {
 						String cross2Trade;
 //						try {
