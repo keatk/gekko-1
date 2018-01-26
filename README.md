@@ -6,6 +6,6 @@
 
 Cryptocurrency arbitrage bot.
 
-Supports arbitrage accross various exchanges via rest & triangular (inter-market) arbitrage on Bittrex using websockets. 
+Supports arbitrage accross various exchanges via Rest & triangular (inter-market) arbitrage on Bittrex using websockets. 
 
 Work in progress.
