@@ -122,7 +122,6 @@ public class BittrexChannelHandler implements Runnable {
 					if(queue.size() == 1) {
 						queue.clear();
 					} else {
-						LOGGER.info("OHNOOOOO");
 						queue.forEach(update -> processUpdate(update));
 					}
 				}

@@ -35,7 +35,7 @@ public class TriangularArbitrager {
 	private final double MAX_TRADE_AMOUNT; //based on base of baseCurrencyPair
 	
 	private int arbitCounter = 0;
-	private boolean debug1 = false  ;
+	private boolean debug1 = true;
 	private boolean debug2 = true;
 	
 	/**
@@ -213,31 +213,39 @@ public class TriangularArbitrager {
 	public boolean triangularArbitrageAskBid(OrderBook baseOrderBook, OrderBook cross1Orderbook, OrderBook cross2Orderbook) throws NotAvailableFromExchangeException, NotYetImplementedForExchangeException, ExchangeException, IOException, InterruptedException {
 		// Return value for couting arbitrage chances
 		boolean ret = false;
+		
 		// Get bids and asks
-		double basePairPrice = baseOrderBook.getAsks().get(0).getLimitPrice().doubleValue(); //Martktteilnehmer: BTC kaufen für ETH // ich: BTC verkaufen
+		double basePairPrice = baseOrderBook.getAsks().get(0).getLimitPrice().doubleValue(); 
 		double basePairVolume = baseOrderBook.getAsks().get(0).getOriginalAmount().doubleValue();
 		double crossPair1Price;
 		double crossPair1Volume = 0;
 		double crossPair2Price;
 		double crossPair2Volume = 0;
-//		if(twistCrossPair1){
-//			crossPair1Price = cross1Orderbook.getBids().get(0).getLimitPrice().doubleValue();
-//			crossPair1Volume = cross1Orderbook.getBids().get(0).getOriginalAmount().doubleValue();
-//		} else {
-			crossPair1Price = cross1Orderbook.getBids().get(0).getLimitPrice().doubleValue(); //Martktteilnehmer: BTC verkaufen für OMG // ich: OMG verkaufen
+		if(twistCrossPair1){
+			crossPair1Price = cross1Orderbook.getAsks().get(0).getLimitPrice().doubleValue();
+			crossPair1Volume = cross1Orderbook.getAsks().get(0).getOriginalAmount().doubleValue();
+		} else {
+			crossPair1Price = cross1Orderbook.getBids().get(0).getLimitPrice().doubleValue(); 
 			crossPair1Volume = cross1Orderbook.getBids().get(0).getOriginalAmount().doubleValue();
-//		}
-//		if(twistCrossPair2){
-			crossPair2Price = cross2Orderbook.getAsks().get(0).getLimitPrice().doubleValue(); //Martktteilnehmer: ETH kaufen für OMG // ich: ETH verkaufen
+		}
+		if(twistCrossPair2){
+			crossPair2Price = cross2Orderbook.getAsks().get(0).getLimitPrice().doubleValue();
 			crossPair2Volume = cross2Orderbook.getAsks().get(0).getOriginalAmount().doubleValue();
-//		} else {
-//			crossPair2Price = cross2Orderbook.getAsks().get(0).getLimitPrice().doubleValue();
-//			crossPair2Volume = cross2Orderbook.getAsks().get(0).getOriginalAmount().doubleValue();
-//		}
+		} else {
+			crossPair2Price = cross2Orderbook.getBids().get(0).getLimitPrice().doubleValue();
+			crossPair2Volume = cross2Orderbook.getBids().get(0).getOriginalAmount().doubleValue();
+		}
 
 		// Calculate cross exchangerate and arbitrage
-		double crossExchangeRate;
-		crossExchangeRate = crossPair1Price/crossPair2Price;
+		//TODO
+		double crossExchangeRate = 0;
+		if(twistCrossPair1) {
+			crossExchangeRate = crossPair2Price/crossPair1Price;
+		}
+		if(twistCrossPair2) {
+			crossExchangeRate = crossPair1Price/crossPair2Price;
+		}
+
 //		if(twistCrossPair1){
 //			crossExchangeRate = (1/crossPair1Price)*crossPair2Price;
 //		} else {
@@ -262,9 +270,9 @@ public class TriangularArbitrager {
 			double sellAmountCrossPair1;
 			double buyAmountCrossPair1 = 0;
 			if(twistCrossPair1) {
-//				sellAmountCrossPair1 = (sellAmountBasePair/basePairPrice)/crossPair2Price;
-//				buyAmountCrossPair1 = sellAmountCrossPair1/crossPair1Price;
-//				LOGGER.info("Sell {}: {} for {}: {}", crossPair1.base, formatDecimals(sellAmountCrossPair1), crossPair1.counter, formatDecimals(buyAmountCrossPair1));
+				sellAmountCrossPair1 = (sellAmountBasePair/basePairPrice)/crossPair2Price; //OMG VERKAUFEN
+				buyAmountCrossPair1 = sellAmountCrossPair1*crossPair1Price;
+				LOGGER.info("Sell {}: {} for {}: {} [price: {}, volume: {} ({})]", crossPair1.counter, formatDecimals(sellAmountCrossPair1), crossPair1.base, formatDecimals(buyAmountCrossPair1), formatDecimals(crossPair1Price), formatDecimals(crossPair1Volume), crossPair1.counter);
 			} else {
 				sellAmountCrossPair1 = (sellAmountBasePair/basePairPrice)/crossPair2Price; //OMG VERKAUFEN
 				buyAmountCrossPair1 = sellAmountCrossPair1*crossPair1Price;
@@ -279,9 +287,9 @@ public class TriangularArbitrager {
 				buyAmountCrossPair2 = sellAmountCrossPair2/crossPair2Price;
 				LOGGER.info("Sell {}: {} for {}: {} [price: {}, volume: {} ({})]", crossPair2.base, formatDecimals(sellAmountCrossPair2), crossPair2.counter, formatDecimals(buyAmountCrossPair2), formatDecimals(crossPair2Price), formatDecimals(crossPair2Volume), crossPair2.counter);
 			} else {
-//				sellAmountCrossPair2 = sellAmountBasePair/basePairPrice;
-//				buyAmountCrossPair2 = sellAmountCrossPair2/crossPair2Price;
-//				LOGGER.info("Sell {}: {} for {}: {}", crossPair2.counter, formatDecimals(sellAmountCrossPair2), crossPair2.base, formatDecimals(buyAmountCrossPair2));
+				sellAmountCrossPair2 = sellAmountBasePair/basePairPrice;  //ETH VERKAUFEN
+				buyAmountCrossPair2 = sellAmountCrossPair2/crossPair2Price;
+				LOGGER.info("Sell {}: {} for {}: {} [price: {}, volume: {} ({})]", crossPair2.base, formatDecimals(sellAmountCrossPair2), crossPair2.counter, formatDecimals(buyAmountCrossPair2), formatDecimals(crossPair2Price), formatDecimals(crossPair2Volume), crossPair2.counter);
 			}
 		
 
@@ -442,29 +450,30 @@ public class TriangularArbitrager {
 		double crossPair1Volume;
 		double crossPair2Price;
 		double crossPair2Volume;
-		//TWIST 2
-//		if(twistCrossPair1){
-//			crossPair1Price = cross1Orderbook.getAsks().get(0).getLimitPrice().doubleValue();
-//		} else {
+		if(twistCrossPair1){
+			crossPair1Price = cross1Orderbook.getBids().get(0).getLimitPrice().doubleValue();
+			crossPair1Volume = cross1Orderbook.getBids().get(0).getOriginalAmount().doubleValue();
+		} else {
 			crossPair1Price = cross1Orderbook.getAsks().get(0).getLimitPrice().doubleValue();
 			crossPair1Volume = cross1Orderbook.getAsks().get(0).getOriginalAmount().doubleValue();
-//		}
-//		if(twistCrossPair2){
+		}
+		if(twistCrossPair2){
 			crossPair2Price = cross2Orderbook.getBids().get(0).getLimitPrice().doubleValue();
-			crossPair2Volume = cross1Orderbook.getBids().get(0).getOriginalAmount().doubleValue();
-//		} else {
-//			crossPair2Price = cross2Orderbook.getBids().get(0).getLimitPrice().doubleValue();
-//		}
+			crossPair2Volume = cross2Orderbook.getBids().get(0).getOriginalAmount().doubleValue();
+		} else {
+			crossPair2Price = cross2Orderbook.getAsks().get(0).getLimitPrice().doubleValue();
+			crossPair2Volume = cross2Orderbook.getAsks().get(0).getOriginalAmount().doubleValue();
+		}
 		
 		// Calculate cross exchangerate and arbitrage
 
-		double crossExchangeRate;
-		crossExchangeRate = crossPair1Price/crossPair2Price;
-//		if(twistCrossPair1){
-//			crossExchangeRate = (1/crossPair1Price)*crossPair2Price;
-//		} else {
-//			crossExchangeRate = crossPair1Price*(1/crossPair2Price);
-//		}
+		double crossExchangeRate = 0;
+		if(twistCrossPair1) {
+			crossExchangeRate = crossPair2Price/crossPair1Price;
+		}
+		if(twistCrossPair2) {
+			crossExchangeRate = crossPair1Price/crossPair2Price;
+		}
 		double arb = (basePairPrice/crossExchangeRate -1)*100;
 
 		LOGGER.info("BID: {} [{}/{}] -- ASK: {} [X {}/{}] -- ARBITRAGE = {}", basePairPrice, basePair.base.toString(), basePair.counter.toString(), String.format("%.8f", crossExchangeRate), crossPair1.counter.toString(), crossPair2.counter.toString(), arb);
